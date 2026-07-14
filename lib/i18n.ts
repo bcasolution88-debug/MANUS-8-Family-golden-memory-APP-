@@ -1,0 +1,339 @@
+/**
+ * Multi-language support for Golden Memory App
+ * Supports Chinese (Simplified) and English
+ */
+
+export type Language = 'zh' | 'en';
+
+export const translations = {
+  zh: {
+    // App Info
+    appName: '金色韶华',
+    splashTitle: '为长辈留住每一个珍贵瞬间',
+    splashSubtitle: '记录金婚银婚 · 分享家的故事',
+    anniversaryThemes: '纪念日专属主题',
+    anniversaryThemesDesc: 'Anniversary themes',
+    cloudStorage: '照片视频云端保存',
+    cloudStorageDesc: 'Cloud photo & video',
+    familyMemories: '家族回忆共同守护',
+    familyMemoriesDesc: 'Family memories together',
+    beginJourney: '开启回忆之旅',
+    hasAccount: '已有账号？立即登录',
+    loadingMessage: '正在加载...',
+
+    // Navigation & Tabs
+    home: '首页',
+    stories: '故事',
+    messages: '消息',
+    album: '相册',
+    me: '我的',
+
+    // Home Screen
+    ourFamily: '我们的幸福',
+    ourFamilyAlbum: '家庭共享相册',
+    members: '位家庭成员',
+    togetherFor: '相守',
+    years: '年',
+    daysUntil: '天后',
+    anniversary: '纪念日',
+    createAlbum: '创建相册',
+    makeVideo: '制作视频',
+    timeline: '回忆时光',
+    more: '更多',
+    familyMembers: '家庭成员',
+    manage: '管理',
+    invite: '邀请',
+
+    // Anniversary Screen
+    goldenAnniversary: '金婚纪念日',
+    silverAnniversary: '银婚',
+    goldenWedding: '金婚',
+    diamondWedding: '钻石婚',
+    platinumWedding: '白金婚',
+    days: '天',
+    hours: '时',
+    minutes: '分',
+    seconds: '秒',
+    sendBlessings: '送祝福',
+    makeVideoBtn: '制作视频',
+    writeStory: '写爱情故事',
+    photoGallery: '纪念相册',
+    viewAll: '查看全部',
+
+    // Love Story Screen
+    loveStory: '往昔故事',
+    chapters: '章节',
+    photos: '照片',
+    videos: '视频',
+    recordNewChapter: '讲述你们的故事',
+    firstMeeting: '初遇',
+    wedding: '婚礼',
+    goldenJourney: '金婚之路',
+
+    // Upload Screen
+    selectPhotos: '选择照片',
+    selectVideos: '选择视频',
+    albumCategory: '相册分类',
+    title: '标题',
+    description: '描述',
+    uploadBtn: '上传',
+    uploading: '上传中...',
+    uploadSuccess: '上传成功',
+    uploadFailed: '上传失败',
+
+    // Studio Screen
+    videoTemplates: '视频模板',
+    importMedia: '导入媒体',
+    editText: '编辑文字',
+    preview: '预览',
+    export: '导出',
+    save: '保存',
+
+    // Photo Screen
+    likes: '赞',
+    comments: '条评论',
+    deletePhoto: '删除',
+    addComment: '添加评论',
+    writeComment: '写评论...',
+
+    // Messages Screen
+    notifications: '通知',
+    noMessages: '暂无消息',
+
+    // Me Screen
+    profile: '个人资料',
+    editProfile: '编辑资料',
+    language: '语言',
+    darkMode: '夜间模式',
+    elderMode: '长辈模式',
+    settings: '设置',
+    privacy: '隐私',
+    logout: '退出登录',
+
+    // Elder Mode
+    elderModeTitle: '长辈模式',
+    designedForElders: '父母专属的长辈模式',
+    enableElderMode: '启用长辈模式',
+    fontSize: '字体大小',
+    voiceInput: '语音输入',
+    handwritingInput: '手写输入',
+    simpleUI: '简洁界面',
+    voiceReminder: '语音提醒',
+    guardian: '家庭守护者',
+    daughter: '女儿',
+    son: '儿子',
+    admin: '管理员',
+    change: '更换',
+
+    // Auth
+    login: '登录',
+    register: '注册',
+    email: '邮箱',
+    phone: '手机号',
+    password: '密码',
+    confirmPassword: '确认密码',
+    forgotPassword: '忘记密码？',
+    signUp: '注册',
+    signIn: '登录',
+    alreadyHaveAccount: '已有账号？',
+    noAccount: '没有账号？',
+    createAccount: '创建账号',
+    loginWithGoogle: '使用 Google 账号登录',
+    loginWithFacebook: '使用 Facebook 账号登录',
+    continueRecording: '继续记录家的美好时光',
+    or: '或',
+
+    // Common
+    yes: '是',
+    no: '否',
+    ok: '确定',
+    cancel: '取消',
+    loading: '加载中...',
+    error: '错误',
+    success: '成功',
+    warning: '警告',
+    info: '信息',
+    back: '返回',
+    next: '下一步',
+    previous: '上一步',
+    submit: '提交',
+    close: '关闭',
+    edit: '编辑',
+    update: '更新',
+    create: '创建',
+    remove: '移除',
+    add: '添加',
+    search: '搜索',
+    filter: '筛选',
+    sort: '排序',
+    deselect: '取消选择',
+  },
+  en: {
+    // App Info
+    appName: 'Golden Memory',
+    splashTitle: 'Preserve every precious moment for your elders',
+    splashSubtitle: 'Celebrate anniversaries · Share family stories',
+    anniversaryThemes: 'Anniversary themes',
+    anniversaryThemesDesc: 'Anniversary themes',
+    cloudStorage: 'Cloud photo & video',
+    cloudStorageDesc: 'Cloud photo & video',
+    familyMemories: 'Family memories together',
+    familyMemoriesDesc: 'Family memories together',
+    beginJourney: 'Begin the Journey',
+    hasAccount: 'Already have an account? Sign in',
+    loadingMessage: 'Loading...',
+
+    // Navigation & Tabs
+    home: 'Home',
+    stories: 'Stories',
+    messages: 'Messages',
+    album: 'Album',
+    me: 'Me',
+
+    // Home Screen
+    ourFamily: 'Our Happiness',
+    ourFamilyAlbum: 'Family Shared Album',
+    members: 'Members',
+    togetherFor: 'Together for',
+    years: 'years',
+    daysUntil: 'Days Until',
+    anniversary: 'Anniversary',
+    createAlbum: 'Create Album',
+    makeVideo: 'Make Video',
+    timeline: 'Timeline',
+    more: 'More',
+    familyMembers: 'Family Members',
+    manage: 'Manage',
+    invite: 'Invite',
+
+    // Anniversary Screen
+    goldenAnniversary: 'Golden Anniversary',
+    silverAnniversary: 'Silver',
+    goldenWedding: 'Golden',
+    diamondWedding: 'Diamond',
+    platinumWedding: 'Platinum',
+    days: 'DD',
+    hours: 'HH',
+    minutes: 'MM',
+    seconds: 'SS',
+    sendBlessings: 'Send Blessings',
+    makeVideoBtn: 'Make Video',
+    writeStory: 'Write Story',
+    photoGallery: 'Photo Gallery',
+    viewAll: 'View All',
+
+    // Love Story Screen
+    loveStory: 'Love Story',
+    chapters: 'Chapters',
+    photos: 'Photos',
+    videos: 'Videos',
+    recordNewChapter: 'Record New Chapter',
+    firstMeeting: 'First Meeting',
+    wedding: 'Wedding',
+    goldenJourney: 'Golden Journey',
+
+    // Upload Screen
+    selectPhotos: 'Select Photos',
+    selectVideos: 'Select Videos',
+    albumCategory: 'Album Category',
+    title: 'Title',
+    description: 'Description',
+    uploadBtn: 'Upload',
+    uploading: 'Uploading...',
+    uploadSuccess: 'Upload Success',
+    uploadFailed: 'Upload Failed',
+
+    // Studio Screen
+    videoTemplates: 'Video Templates',
+    importMedia: 'Import Media',
+    editText: 'Edit Text',
+    preview: 'Preview',
+    export: 'Export',
+    save: 'Save',
+
+    // Photo Screen
+    likes: 'Likes',
+    comments: 'Comments',
+    deletePhoto: 'Delete',
+    addComment: 'Add Comment',
+    writeComment: 'Write a comment...',
+
+    // Messages Screen
+    notifications: 'Notifications',
+    noMessages: 'No Messages',
+
+    // Me Screen
+    profile: 'Profile',
+    editProfile: 'Edit Profile',
+    language: 'Language',
+    darkMode: 'Dark Mode',
+    elderMode: 'Elder Mode',
+    settings: 'Settings',
+    privacy: 'Privacy',
+    logout: 'Logout',
+
+    // Elder Mode
+    elderModeTitle: 'Elder Mode',
+    designedForElders: 'Designed for your beloved elders',
+    enableElderMode: 'Enable Elder Mode',
+    fontSize: 'Font Size',
+    voiceInput: 'Voice Input',
+    handwritingInput: 'Handwriting',
+    simpleUI: 'Simple UI',
+    voiceReminder: 'Voice Reminder',
+    guardian: 'Guardian',
+    daughter: 'Daughter',
+    son: 'Son',
+    admin: 'Admin',
+    change: 'Change',
+
+    // Auth
+    login: 'Sign In',
+    register: 'Sign Up',
+    email: 'Email',
+    phone: 'Phone',
+    password: 'Password',
+    confirmPassword: 'Confirm Password',
+    forgotPassword: 'Forgot Password?',
+    signUp: 'Sign Up',
+    signIn: 'Sign In',
+    alreadyHaveAccount: 'Already have an account?',
+    noAccount: 'Don\'t have an account?',
+    createAccount: 'Create Account',
+    loginWithGoogle: 'Sign in with Google',
+    loginWithFacebook: 'Sign in with Facebook',
+    continueRecording: 'Continue recording family memories',
+    or: 'Or',
+
+    // Common
+    yes: 'Yes',
+    no: 'No',
+    ok: 'OK',
+    cancel: 'Cancel',
+    loading: 'Loading...',
+    error: 'Error',
+    success: 'Success',
+    warning: 'Warning',
+    info: 'Info',
+    back: 'Back',
+    next: 'Next',
+    previous: 'Previous',
+    submit: 'Submit',
+    close: 'Close',
+    edit: 'Edit',
+    update: 'Update',
+    create: 'Create',
+    remove: 'Remove',
+    add: 'Add',
+    search: 'Search',
+    filter: 'Filter',
+    sort: 'Sort',
+    deselect: 'Deselect',
+  },
+};
+
+export type TranslationKey = keyof typeof translations.zh;
+
+export function getTranslation(language: Language, key: TranslationKey): string {
+  return translations[language][key] || translations.en[key] || key;
+}
