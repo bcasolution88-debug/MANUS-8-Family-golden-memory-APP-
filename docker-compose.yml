@@ -1,0 +1,49 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      VITE_APP_ID: ${VITE_APP_ID:?set VITE_APP_ID}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      JWT_ISSUER: ${JWT_ISSUER:-golden-memory}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-golden-memory-client}
+      DATABASE_URL: mysql://golden_memory:${MYSQL_PASSWORD:?set MYSQL_PASSWORD}@mysql:3306/golden_memory
+      OAUTH_SERVER_URL: ${OAUTH_SERVER_URL:?set OAUTH_SERVER_URL}
+      OWNER_OPEN_ID: ${OWNER_OPEN_ID:?set OWNER_OPEN_ID}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?set ALLOWED_ORIGINS}
+      APP_URL: ${APP_URL:?set APP_URL}
+      BUILT_IN_FORGE_API_URL: ${BUILT_IN_FORGE_API_URL:-}
+      BUILT_IN_FORGE_API_KEY: ${BUILT_IN_FORGE_API_KEY:-}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:?set AWS_S3_BUCKET}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: golden_memory
+      MYSQL_USER: golden_memory
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  mysql_data:
