@@ -28,7 +28,16 @@ const testUser = {
   role: "user" as const,
 };
 
+const intruderUser = {
+  openId: `ci-intruder-${Date.now()}`,
+  email: `ci-intruder-${Date.now()}@example.test`,
+  name: "CI Intruder",
+  loginMethod: "integration",
+  role: "user" as const,
+};
+
 let userId = 0;
+let intruderId = 0;
 let familyId = 0;
 let albumId = 0;
 let mediaId = 0;
@@ -57,7 +66,7 @@ describeIntegration("API and database integration", () => {
     if (!database)
       throw new Error("TEST_DATABASE_URL did not create a database connection");
 
-    await database.insert(users).values(testUser);
+    await database.insert(users).values([testUser, intruderUser]);
     const rows = await database
       .select()
       .from(users)
@@ -65,6 +74,14 @@ describeIntegration("API and database integration", () => {
       .limit(1);
     if (!rows[0]) throw new Error("Failed to create integration test user");
     userId = rows[0].id;
+    const intruderRows = await database
+      .select()
+      .from(users)
+      .where(eq(users.openId, intruderUser.openId))
+      .limit(1);
+    if (!intruderRows[0])
+      throw new Error("Failed to create intruder test user");
+    intruderId = intruderRows[0].id;
   });
 
   afterAll(async () => {
@@ -95,6 +112,7 @@ describeIntegration("API and database integration", () => {
         .where(eq(familyMembers.familyId, familyId));
       await database.delete(families).where(eq(families.id, familyId));
     }
+    await database.delete(users).where(eq(users.id, intruderId));
     await database.delete(users).where(eq(users.id, userId));
   });
 
@@ -263,5 +281,40 @@ describeIntegration("API and database integration", () => {
     await expect(
       caller.interaction.getShareStats({ id: shareId }),
     ).resolves.toMatchObject({ clicks: 1 });
+  });
+
+  it("rejects cross-family BOLA/IDOR access", async () => {
+    const database = await getDb();
+    if (!database) throw new Error("Database connection unavailable");
+    const intruderRows = await database
+      .select()
+      .from(users)
+      .where(eq(users.id, intruderId))
+      .limit(1);
+    const intruder = intruderRows[0];
+    if (!intruder) throw new Error("Intruder test user unavailable");
+    const intruderCaller = appRouter.createCaller(createContext(intruder));
+
+    await expect(
+      intruderCaller.family.getFamily({ familyId }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      intruderCaller.family.getMembers({ familyId }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      intruderCaller.album.getAlbum({ albumId }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      intruderCaller.album.getMediaByAlbum({ albumId }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      intruderCaller.media.getMedia({ id: mediaId }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      intruderCaller.interaction.getShareStats({ id: shareId }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      intruderCaller.interaction.createShare({ mediaId, platform: "link" }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

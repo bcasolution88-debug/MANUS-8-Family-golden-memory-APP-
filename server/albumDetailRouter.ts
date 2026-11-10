@@ -1,13 +1,22 @@
 import { router, protectedProcedure } from "@/server/_core/trpc";
+import {
+  requireAlbumAccess,
+  requireFamilyMember,
+} from "@/server/_core/authorization";
 import { z } from "zod";
 import { getDb } from "@/server/db";
-import { albums, comments, familyMembers, likes, media } from "@/drizzle/schema";
+import {
+  albums,
+  comments,
+  familyMembers,
+  likes,
+  media,
+} from "@/drizzle/schema";
 import { and, desc, eq } from "drizzle-orm";
 
 const albumIdInput = z.coerce.number().int().positive();
 const familyIdInput = z.coerce.number().int().positive();
-
-async function requireDb() {
+async function requireDatabase() {
   const database = await getDb();
   if (!database) throw new Error("Database not available");
   return database;
@@ -18,23 +27,18 @@ export const albumDetailRouter = router({
     .input(
       z.object({
         familyId: familyIdInput,
-        title: z.string().min(1),
-        description: z.string().optional(),
-        type: z.enum(["anniversary", "memory", "timeline", "story"]).default("memory"),
+        title: z.string().min(1).max(255),
+        description: z.string().max(5000).optional(),
+        type: z
+          .enum(["anniversary", "memory", "timeline", "story"])
+          .default("memory"),
         isPrivate: z.boolean().default(false),
         coverImage: z.string().url().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const database = await requireDb();
-      const member = await database
-        .select({ id: familyMembers.id })
-        .from(familyMembers)
-        .where(and(eq(familyMembers.familyId, input.familyId), eq(familyMembers.userId, ctx.user.id)))
-        .limit(1);
-
-      if (member.length === 0) throw new Error("User is not a member of this family");
-
+      await requireFamilyMember(ctx.user.id, input.familyId);
+      const database = await requireDatabase();
       const inserted = await database.insert(albums).values({
         familyId: input.familyId,
         createdBy: ctx.user.id,
@@ -44,7 +48,6 @@ export const albumDetailRouter = router({
         isPrivate: input.isPrivate,
         thumbnail: input.coverImage,
       });
-
       const created = await database
         .select()
         .from(albums)
@@ -63,14 +66,8 @@ export const albumDetailRouter = router({
       }),
     )
     .query(async ({ input, ctx }) => {
-      const database = await requireDb();
-      const member = await database
-        .select({ id: familyMembers.id })
-        .from(familyMembers)
-        .where(and(eq(familyMembers.familyId, input.familyId), eq(familyMembers.userId, ctx.user.id)))
-        .limit(1);
-      if (member.length === 0) throw new Error("User is not a member of this family");
-
+      await requireFamilyMember(ctx.user.id, input.familyId);
+      const database = await requireDatabase();
       return database
         .select()
         .from(albums)
@@ -87,38 +84,23 @@ export const albumDetailRouter = router({
 
   getAlbum: protectedProcedure
     .input(z.object({ id: albumIdInput }))
-    .query(async ({ input, ctx }) => {
-      const database = await requireDb();
-      const albumRows = await database.select().from(albums).where(eq(albums.id, input.id)).limit(1);
-      const album = albumRows[0];
-      if (!album) throw new Error("Album not found");
-
-      const member = await database
-        .select({ id: familyMembers.id })
-        .from(familyMembers)
-        .where(and(eq(familyMembers.familyId, album.familyId), eq(familyMembers.userId, ctx.user.id)))
-        .limit(1);
-      if (album.isPrivate && member.length === 0) throw new Error("Access denied");
-      return album;
-    }),
+    .query(async ({ input, ctx }) => requireAlbumAccess(ctx.user.id, input.id)),
 
   updateAlbum: protectedProcedure
     .input(
       z.object({
         id: albumIdInput,
-        title: z.string().min(1).optional(),
-        description: z.string().optional(),
+        title: z.string().min(1).max(255).optional(),
+        description: z.string().max(5000).optional(),
         coverImage: z.string().url().nullable().optional(),
         isPrivate: z.boolean().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const database = await requireDb();
-      const rows = await database.select().from(albums).where(eq(albums.id, input.id)).limit(1);
-      const album = rows[0];
-      if (!album) throw new Error("Album not found");
-      if (album.createdBy !== ctx.user.id) throw new Error("Only album creator can update");
-
+      const album = await requireAlbumAccess(ctx.user.id, input.id);
+      if (album.createdBy !== ctx.user.id)
+        throw new Error("Only album creator can update");
+      const database = await requireDatabase();
       await database
         .update(albums)
         .set({
@@ -128,32 +110,35 @@ export const albumDetailRouter = router({
           isPrivate: input.isPrivate,
         })
         .where(eq(albums.id, input.id));
-      const updated = await database.select().from(albums).where(eq(albums.id, input.id)).limit(1);
+      const updated = await database
+        .select()
+        .from(albums)
+        .where(eq(albums.id, input.id))
+        .limit(1);
       return updated[0];
     }),
 
   deleteAlbum: protectedProcedure
     .input(z.object({ id: albumIdInput }))
     .mutation(async ({ input, ctx }) => {
-      const database = await requireDb();
-      const rows = await database.select().from(albums).where(eq(albums.id, input.id)).limit(1);
-      const album = rows[0];
-      if (!album) throw new Error("Album not found");
-      if (album.createdBy !== ctx.user.id) throw new Error("Only album creator can delete");
+      const album = await requireAlbumAccess(ctx.user.id, input.id);
+      if (album.createdBy !== ctx.user.id)
+        throw new Error("Only album creator can delete");
+      const database = await requireDatabase();
       await database.delete(albums).where(eq(albums.id, input.id));
       return { success: true };
     }),
 
   getAlbumStats: protectedProcedure
     .input(z.object({ id: albumIdInput }))
-    .query(async ({ input }) => {
-      const database = await requireDb();
-      const rows = await database.select().from(albums).where(eq(albums.id, input.id)).limit(1);
-      const album = rows[0];
-      if (!album) throw new Error("Album not found");
-
+    .query(async ({ input, ctx }) => {
+      const album = await requireAlbumAccess(ctx.user.id, input.id);
+      const database = await requireDatabase();
       const [mediaRows, commentRows, likeRows] = await Promise.all([
-        database.select({ id: media.id }).from(media).where(eq(media.albumId, input.id)),
+        database
+          .select({ id: media.id })
+          .from(media)
+          .where(eq(media.albumId, input.id)),
         database
           .select({ id: comments.id })
           .from(comments)
@@ -165,7 +150,6 @@ export const albumDetailRouter = router({
           .innerJoin(media, eq(likes.mediaId, media.id))
           .where(eq(media.albumId, input.id)),
       ]);
-
       return {
         mediaCount: mediaRows.length,
         commentCount: commentRows.length,

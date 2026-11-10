@@ -1,8 +1,14 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "./_core/trpc";
-import { 
-  createAlbum, 
-  getAlbumsByFamily, 
+import {
+  requireAlbumAccess,
+  requireFamilyMember,
+  requireMediaAccess,
+  requireMediaBelongsToAlbum,
+} from "./_core/authorization";
+import {
+  createAlbum,
+  getAlbumsByFamily,
   getAlbumById,
   uploadMedia,
   getMediaByAlbum,
@@ -12,167 +18,131 @@ import {
   addComment,
   getCommentsByMedia,
   deleteComment,
-  getFamilyMembers,
 } from "./db";
 
 export const albumRouter = router({
-  // Album operations
   createAlbum: protectedProcedure
-    .input(z.object({
-      familyId: z.number(),
-      name: z.string(),
-      description: z.string().optional(),
-      category: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        familyId: z.number().int().positive(),
+        name: z.string().min(1).max(255),
+        description: z.string().max(5000).optional(),
+        category: z.string().max(64).optional(),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
-      // Verify user is a member of the family
-      const members = await getFamilyMembers(input.familyId);
-      if (!members.some(m => m.userId === ctx.user.id)) {
-        throw new Error("Not a member of this family");
-      }
-
-      return await createAlbum({
-        familyId: input.familyId,
-        name: input.name,
-        description: input.description,
-        category: input.category,
+      await requireFamilyMember(ctx.user.id, input.familyId);
+      return createAlbum({
+        ...input,
         createdBy: ctx.user.id,
         isPrivate: false,
       });
     }),
 
   listAlbums: protectedProcedure
-    .input(z.object({
-      familyId: z.number(),
-    }))
+    .input(z.object({ familyId: z.number().int().positive() }))
     .query(async ({ input, ctx }) => {
-      // Verify user is a member of the family
-      const members = await getFamilyMembers(input.familyId);
-      if (!members.some(m => m.userId === ctx.user.id)) {
-        throw new Error("Not a member of this family");
-      }
-
-      return await getAlbumsByFamily(input.familyId);
+      await requireFamilyMember(ctx.user.id, input.familyId);
+      return getAlbumsByFamily(input.familyId);
     }),
 
   getAlbum: protectedProcedure
-    .input(z.object({
-      albumId: z.number(),
-    }))
-    .query(async ({ input }) => {
-      return await getAlbumById(input.albumId);
+    .input(z.object({ albumId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      await requireAlbumAccess(ctx.user.id, input.albumId);
+      return getAlbumById(input.albumId);
     }),
 
-  // Media operations
   uploadMedia: protectedProcedure
-    .input(z.object({
-      albumId: z.number(),
-      familyId: z.number(),
-      type: z.enum(["photo", "video"]),
-      url: z.string(),
-      thumbnail: z.string().optional(),
-      title: z.string().optional(),
-      description: z.string().optional(),
-      duration: z.number().optional(),
-      fileSize: z.number().optional(),
-    }))
+    .input(
+      z.object({
+        albumId: z.number().int().positive(),
+        familyId: z.number().int().positive(),
+        type: z.enum(["photo", "video"]),
+        url: z.string().url(),
+        thumbnail: z.string().url().optional(),
+        title: z.string().max(255).optional(),
+        description: z.string().max(20000).optional(),
+        duration: z.number().int().nonnegative().optional(),
+        fileSize: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(1024 * 1024 * 1024)
+          .optional(),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
-      // Verify user is a member of the family
-      const members = await getFamilyMembers(input.familyId);
-      if (!members.some(m => m.userId === ctx.user.id)) {
-        throw new Error("Not a member of this family");
-      }
-
-      return await uploadMedia({
-        albumId: input.albumId,
-        familyId: input.familyId,
-        uploadedBy: ctx.user.id,
-        type: input.type,
-        url: input.url,
-        thumbnail: input.thumbnail,
-        title: input.title,
-        description: input.description,
-        duration: input.duration,
-        fileSize: input.fileSize,
-      });
+      const album = await requireAlbumAccess(ctx.user.id, input.albumId);
+      if (album.familyId !== input.familyId)
+        throw new Error("Family does not match album");
+      return uploadMedia({ ...input, uploadedBy: ctx.user.id });
     }),
 
   getMediaByAlbum: protectedProcedure
-    .input(z.object({
-      albumId: z.number(),
-    }))
-    .query(async ({ input }) => {
-      return await getMediaByAlbum(input.albumId);
+    .input(z.object({ albumId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      await requireAlbumAccess(ctx.user.id, input.albumId);
+      return getMediaByAlbum(input.albumId);
     }),
 
-  // Like operations
   addLike: protectedProcedure
-    .input(z.object({
-      mediaId: z.number(),
-    }))
+    .input(z.object({ mediaId: z.number().int().positive() }))
     .mutation(async ({ input, ctx }) => {
-      await addLike({
-        mediaId: input.mediaId,
-        userId: ctx.user.id,
-      });
+      await requireMediaAccess(ctx.user.id, input.mediaId);
+      await addLike({ mediaId: input.mediaId, userId: ctx.user.id });
       return { success: true };
     }),
 
   removeLike: protectedProcedure
-    .input(z.object({
-      mediaId: z.number(),
-    }))
+    .input(z.object({ mediaId: z.number().int().positive() }))
     .mutation(async ({ input, ctx }) => {
+      await requireMediaAccess(ctx.user.id, input.mediaId);
       await removeLike(input.mediaId, ctx.user.id);
       return { success: true };
     }),
 
   getLikes: protectedProcedure
-    .input(z.object({
-      mediaId: z.number(),
-    }))
-    .query(async ({ input }) => {
-      return await getLikesByMedia(input.mediaId);
+    .input(z.object({ mediaId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      await requireMediaAccess(ctx.user.id, input.mediaId);
+      return getLikesByMedia(input.mediaId);
     }),
 
-  // Comment operations
   addComment: protectedProcedure
-    .input(z.object({
-      mediaId: z.number(),
-      content: z.string(),
-      rating: z.number().optional(),
-    }))
+    .input(
+      z.object({
+        mediaId: z.number().int().positive(),
+        content: z.string().min(1).max(10000),
+        rating: z.number().int().min(1).max(5).optional(),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
-      return await addComment({
-        mediaId: input.mediaId,
-        userId: ctx.user.id,
-        content: input.content,
-        rating: input.rating,
-      });
+      await requireMediaAccess(ctx.user.id, input.mediaId);
+      return addComment({ ...input, userId: ctx.user.id });
     }),
 
   getComments: protectedProcedure
-    .input(z.object({
-      mediaId: z.number(),
-    }))
-    .query(async ({ input }) => {
-      return await getCommentsByMedia(input.mediaId);
+    .input(z.object({ mediaId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      await requireMediaAccess(ctx.user.id, input.mediaId);
+      return getCommentsByMedia(input.mediaId);
     }),
 
   deleteComment: protectedProcedure
-    .input(z.object({
-      commentId: z.number(),
-      mediaId: z.number(),
-    }))
+    .input(
+      z.object({
+        commentId: z.number().int().positive(),
+        mediaId: z.number().int().positive(),
+      }),
+    )
     .mutation(async ({ input, ctx }) => {
-      // Verify user is the comment author
-      const comments = await getCommentsByMedia(input.mediaId);
-      const comment = comments.find(c => c.id === input.commentId);
-      
-      if (!comment || comment.userId !== ctx.user.id) {
+      await requireMediaAccess(ctx.user.id, input.mediaId);
+      const comment = (await getCommentsByMedia(input.mediaId)).find(
+        (item) => item.id === input.commentId,
+      );
+      if (!comment || comment.userId !== ctx.user.id)
         throw new Error("Not authorized to delete this comment");
-      }
-
       await deleteComment(input.commentId, input.mediaId);
       return { success: true };
     }),
