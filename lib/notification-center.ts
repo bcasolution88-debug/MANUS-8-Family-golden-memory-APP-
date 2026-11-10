@@ -88,8 +88,9 @@ class NotificationCenter {
     const notification = this.notifications.get(notificationId);
     if (!notification) return;
 
+    const wasUnread = notification.status === "unread";
     notification.status = "archived";
-    if (notification.status === "unread") {
+    if (wasUnread) {
       this.unreadCount--;
     }
 

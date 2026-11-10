@@ -32,7 +32,7 @@ export function PermissionManagementUI({
   onRemoveMember,
   onInviteMember,
   onGenerateInviteLink,
-}: PermissionMangementUIProps) {
+}: PermissionManagementUIProps) {
   const colors = useColors();
   const { t } = useLanguage();
   const [inviteEmail, setInviteEmail] = useState("");
@@ -73,10 +73,10 @@ export function PermissionManagementUI({
           {/* 标题 */}
           <View className="gap-2">
             <Text className="text-2xl font-bold text-foreground">
-              {t?.permissionManagement || "权限管理"}
+              {t("permissionManagement") || "权限管理"}
             </Text>
             <Text className="text-sm text-muted">
-              {t?.manageFamily || "管理家庭成员和权限"}
+              {t("manageFamily") || "管理家庭成员和权限"}
             </Text>
           </View>
 
@@ -84,13 +84,13 @@ export function PermissionManagementUI({
           {canManageRoles && (
             <View className="bg-surface rounded-lg p-4 gap-3">
               <Text className="font-semibold text-foreground">
-                {t?.inviteMembers || "邀请成员"}
+                {t("inviteMembers") || "邀请成员"}
               </Text>
 
               <View className="flex-row gap-2">
                 <TextInput
                   className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-foreground"
-                  placeholder={t?.emailAddress || "邮箱地址"}
+                  placeholder={t("emailAddress") || "邮箱地址"}
                   placeholderTextColor={colors.muted}
                   value={inviteEmail}
                   onChangeText={setInviteEmail}
@@ -101,7 +101,7 @@ export function PermissionManagementUI({
                   onPress={handleInvite}
                 >
                   <Text className="text-background font-semibold text-sm">
-                    {t?.invite || "邀请"}
+                    {t("invite") || "邀请"}
                   </Text>
                 </Pressable>
               </View>
@@ -111,7 +111,7 @@ export function PermissionManagementUI({
                 onPress={onGenerateInviteLink}
               >
                 <Text className="text-primary font-semibold text-center">
-                  {t?.generateInviteLink || "生成邀请链接"}
+                  {t("generateInviteLink") || "生成邀请链接"}
                 </Text>
               </Pressable>
             </View>
@@ -120,10 +120,10 @@ export function PermissionManagementUI({
           {/* 成员列表 */}
           <View className="gap-3">
             <Text className="font-semibold text-foreground">
-              {t?.members || "成员"} ({members.length})
+              {t("members") || "成员"} ({members.length})
             </Text>
 
-            {members.map(member => (
+            {members.map((member: PermissionMember) => (
               <View
                 key={member.id}
                 className="bg-surface rounded-lg p-4 flex-row items-center justify-between"
@@ -132,7 +132,7 @@ export function PermissionManagementUI({
                   <Text className="font-semibold text-foreground">{member.name}</Text>
                   <Text className="text-xs text-muted">{member.email}</Text>
                   <Text className="text-xs text-muted">
-                    {t?.joinedAt || "加入于"}: {new Date(member.joinedAt).toLocaleDateString()}
+                    {t("joinedAt") || "加入于"}: {new Date(member.joinedAt).toLocaleDateString()}
                   </Text>
                 </View>
 
@@ -163,7 +163,7 @@ export function PermissionManagementUI({
                       onPress={() => handleRemoveMember(member.id)}
                     >
                       <Text className="text-background text-xs font-semibold">
-                        {t?.remove || "移除"}
+                        {t("remove") || "移除"}
                       </Text>
                     </Pressable>
                   )}
@@ -176,7 +176,7 @@ export function PermissionManagementUI({
           {showRoleMenu && selectedMemberId && (
             <View className="bg-surface rounded-lg p-3 gap-2">
               <Text className="font-semibold text-foreground text-sm">
-                {t?.selectRole || "选择角色"}
+                {t("selectRole") || "选择角色"}
               </Text>
 
               {roleOptions.map(option => (
@@ -197,7 +197,7 @@ export function PermissionManagementUI({
                 }}
               >
                 <Text className="text-foreground text-sm text-center">
-                  {t?.cancel || "取消"}
+                  {t("cancel") || "取消"}
                 </Text>
               </Pressable>
             </View>
@@ -206,7 +206,7 @@ export function PermissionManagementUI({
           {/* 权限说明 */}
           <View className="bg-surface rounded-lg p-4 gap-3">
             <Text className="font-semibold text-foreground">
-              {t?.rolePermissions || "角色权限说明"}
+              {t("rolePermissions") || "角色权限说明"}
             </Text>
 
             <View className="gap-2 text-xs">

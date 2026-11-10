@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { mediaLibraryManager, MediaAsset, MediaAlbum, PermissionStatus } from "@/lib/media-library-manager";
 
+export type { MediaAsset, MediaAlbum } from "@/lib/media-library-manager";
+
 export function useMediaLibrary() {
   const [albums, setAlbums] = useState<MediaAlbum[]>([]);
   const [recentAssets, setRecentAssets] = useState<MediaAsset[]>([]);

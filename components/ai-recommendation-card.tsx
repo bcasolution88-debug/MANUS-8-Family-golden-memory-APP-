@@ -28,9 +28,9 @@ export function AIRecommendationCard({
   const bestTime = bestTimes.length > 0 ? bestTimes[0] : null;
 
   const formatDaysUntil = (days: number): string => {
-    if (days === 0) return t?.today || "今天";
-    if (days === 1) return t?.tomorrow || "明天";
-    return `${days} ${t?.daysLater || "天后"}`;
+    if (days === 0) return t("today") || "今天";
+    if (days === 1) return t("tomorrow") || "明天";
+    return `${days} ${t("daysLater") || "天后"}`;
   };
 
   const getAnniversaryEmoji = (type: string): string => {
@@ -51,10 +51,10 @@ export function AIRecommendationCard({
         <View className="bg-surface rounded-lg p-4 gap-3">
           <View className="flex-row items-center justify-between">
             <Text className="text-lg font-bold text-foreground">
-              ⏰ {t?.bestShareTime || "最佳分享时间"}
+              ⏰ {t("bestShareTime") || "最佳分享时间"}
             </Text>
             <Text className="text-xs bg-primary text-background px-2 py-1 rounded">
-              {t?.recommended || "推荐"} {(bestTime.engagementScore * 100).toFixed(0)}%
+              {t("recommended") || "推荐"} {(bestTime.engagementScore * 100).toFixed(0)}%
             </Text>
           </View>
 
@@ -68,7 +68,7 @@ export function AIRecommendationCard({
 
           <Pressable className="bg-primary rounded-lg py-2">
             <Text className="text-background text-center font-semibold text-sm">
-              {t?.scheduleShare || "安排分享"} →
+              {t("scheduleShare") || "安排分享"} →
             </Text>
           </Pressable>
         </View>
@@ -79,7 +79,7 @@ export function AIRecommendationCard({
         <View className="bg-surface rounded-lg p-4 gap-3">
           <View className="flex-row items-center justify-between">
             <Text className="text-lg font-bold text-foreground">
-              {getAnniversaryEmoji(nextAnniversary.type)} {t?.upcomingAnniversary || "即将到来的纪念日"}
+              {getAnniversaryEmoji(nextAnniversary.type)} {t("upcomingAnniversary") || "即将到来的纪念日"}
             </Text>
             <Text className="text-xs bg-error text-background px-2 py-1 rounded">
               {formatDaysUntil(nextAnniversary.daysUntil)}
@@ -97,7 +97,7 @@ export function AIRecommendationCard({
                     : "纪念日 / Anniversary"}
             </Text>
             <Text className="text-xs text-muted">
-              {t?.urgency || "紧急度"}: {(nextAnniversary.urgencyScore * 100).toFixed(0)}%
+              {t("urgency") || "紧急度"}: {(nextAnniversary.urgencyScore * 100).toFixed(0)}%
             </Text>
           </View>
 
@@ -105,7 +105,7 @@ export function AIRecommendationCard({
           {nextAnniversary.suggestedActions.length > 0 && (
             <View className="gap-2">
               <Text className="text-sm font-semibold text-foreground">
-                {t?.suggestedActions || "建议操作"}:
+                {t("suggestedActions") || "建议操作"}:
               </Text>
               {nextAnniversary.suggestedActions.slice(0, 2).map((action, idx) => (
                 <Pressable key={idx} className="bg-background rounded-lg px-3 py-2">
@@ -120,7 +120,7 @@ export function AIRecommendationCard({
             onPress={onViewAnniversaries}
           >
             <Text className="text-background text-center font-semibold text-sm">
-              {t?.viewAllAnniversaries || "查看所有纪念日"} →
+              {t("viewAllAnniversaries") || "查看所有纪念日"} →
             </Text>
           </Pressable>
         </View>
@@ -130,7 +130,7 @@ export function AIRecommendationCard({
       {recommendations.length > 0 && (
         <View className="bg-surface rounded-lg p-4 gap-3">
           <Text className="text-lg font-bold text-foreground">
-            ⭐ {t?.recommendedContent || "推荐内容"}
+            ⭐ {t("recommendedContent") || "推荐内容"}
           </Text>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-2">
@@ -138,7 +138,7 @@ export function AIRecommendationCard({
               <View key={idx} className="bg-background rounded-lg p-3 w-48 gap-2">
                 <View className="flex-row items-center justify-between">
                   <Text className="text-sm font-semibold text-foreground">
-                    {t?.score || "评分"}
+                    {t("score") || "评分"}
                   </Text>
                   <Text className="text-xs bg-primary text-background px-2 py-1 rounded">
                     {(rec.score * 100).toFixed(0)}%
@@ -152,7 +152,7 @@ export function AIRecommendationCard({
                 )}
                 {rec.bestShareTime && (
                   <Text className="text-xs text-muted">
-                    {t?.bestTime || "最佳时间"}: {rec.bestShareTime.hour}:00
+                    {t("bestTime") || "最佳时间"}: {rec.bestShareTime.hour}:00
                   </Text>
                 )}
               </View>
@@ -164,7 +164,7 @@ export function AIRecommendationCard({
             onPress={onViewRecommendedContent}
           >
             <Text className="text-background text-center font-semibold text-sm">
-              {t?.viewAllRecommendations || "查看所有推荐"} →
+              {t("viewAllRecommendations") || "查看所有推荐"} →
             </Text>
           </Pressable>
         </View>

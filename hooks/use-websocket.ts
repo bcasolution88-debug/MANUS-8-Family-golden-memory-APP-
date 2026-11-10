@@ -13,7 +13,7 @@ export function useWebSocket() {
     const connectWebSocket = async () => {
       try {
         const wsUrl = process.env.EXPO_PUBLIC_WS_URL || "ws://localhost:3001";
-        await wsManager.connect(wsUrl, user.id);
+        await wsManager.connect(wsUrl, String(user.id));
         setIsConnected(true);
       } catch (error) {
         console.error("Failed to connect WebSocket:", error);

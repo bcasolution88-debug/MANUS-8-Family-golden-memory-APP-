@@ -81,7 +81,11 @@ export default function MembersScreen() {
     setMembers(
       members.map(m =>
         m.id === member.id
-          ? { ...m, role: newRole, roleName: ROLE_OPTIONS.find(r => r.value === newRole)?.label }
+          ? {
+              ...m,
+              role: newRole,
+              roleName: ROLE_OPTIONS.find(r => r.value === newRole)?.label ?? m.roleName,
+            }
           : m
       )
     );

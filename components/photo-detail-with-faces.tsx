@@ -52,10 +52,10 @@ export function PhotoDetailWithFaces({
             <View className="gap-3">
               <View className="flex-row items-center justify-between">
                 <Text className="text-lg font-bold text-foreground">
-                  {t?.peopleInPhoto || "照片中的人物"} ({faces.length})
+                  {t("peopleInPhoto") || "照片中的人物"} ({faces.length})
                 </Text>
                 <Text className="text-xs text-muted">
-                  {t?.clickToFilter || "点击筛选"}
+                  {t("clickToFilter") || "点击筛选"}
                 </Text>
               </View>
 
@@ -79,7 +79,7 @@ export function PhotoDetailWithFaces({
                       <View className="flex-1">
                         <Text className="font-semibold text-foreground">{face.name}</Text>
                         <Text className="text-xs text-muted">
-                          {t?.confidence || "置信度"}: {(face.confidence * 100).toFixed(0)}%
+                          {t("confidence") || "置信度"}: {(face.confidence * 100).toFixed(0)}%
                         </Text>
                       </View>
                     </View>
@@ -89,7 +89,7 @@ export function PhotoDetailWithFaces({
                       onPress={() => handleFilterByPerson(face.personId)}
                     >
                       <Text className="text-background text-xs font-semibold">
-                        {t?.filter || "筛选"}
+                        {t("filter") || "筛选"}
                       </Text>
                     </Pressable>
                   </Pressable>
@@ -100,12 +100,12 @@ export function PhotoDetailWithFaces({
               <View className="flex-row gap-2">
                 <Pressable className="flex-1 bg-primary rounded-lg py-2">
                   <Text className="text-background text-center font-semibold">
-                    {t?.shareWithPeople || "分享给这些人"}
+                    {t("shareWithPeople") || "分享给这些人"}
                   </Text>
                 </Pressable>
                 <Pressable className="flex-1 bg-surface border border-border rounded-lg py-2">
                   <Text className="text-foreground text-center font-semibold">
-                    {t?.editTags || "编辑标签"}
+                    {t("editTags") || "编辑标签"}
                   </Text>
                 </Pressable>
               </View>
@@ -116,10 +116,10 @@ export function PhotoDetailWithFaces({
           {faces.length === 0 && (
             <View className="bg-surface rounded-lg p-4 items-center gap-2">
               <Text className="text-foreground font-semibold">
-                {t?.noFacesDetected || "未检测到人物"}
+                {t("noFacesDetected") || "未检测到人物"}
               </Text>
               <Text className="text-sm text-muted text-center">
-                {t?.noFacesMessage || "此照片中未检测到任何人物"}
+                {t("noFacesMessage") || "此照片中未检测到任何人物"}
               </Text>
             </View>
           )}
@@ -127,11 +127,11 @@ export function PhotoDetailWithFaces({
           {/* 照片信息 */}
           <View className="bg-surface rounded-lg p-4 gap-2">
             <Text className="font-semibold text-foreground">
-              {t?.photoInfo || "照片信息"}
+              {t("photoInfo") || "照片信息"}
             </Text>
             <Text className="text-sm text-muted">ID: {photoId}</Text>
             <Text className="text-sm text-muted">
-              {t?.uploadedAt || "上传时间"}: {new Date().toLocaleString()}
+              {t("uploadedAt") || "上传时间"}: {new Date().toLocaleString()}
             </Text>
           </View>
         </View>

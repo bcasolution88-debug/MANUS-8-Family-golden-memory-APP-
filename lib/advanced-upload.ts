@@ -229,7 +229,8 @@ export async function uploadChunksInParallel(
 
     // 分批上传分块
     for (let i = 0; i < chunks.length; i += MAX_CONCURRENT_CHUNKS) {
-      if (task.status === "paused") {
+      const currentTask = UPLOAD_TASKS.get(taskId);
+      if (!currentTask || currentTask.status === "paused") {
         break;
       }
 
@@ -245,7 +246,8 @@ export async function uploadChunksInParallel(
     }
 
     // 所有分块上传完成
-    if (task.status !== "paused") {
+    const currentTask = UPLOAD_TASKS.get(taskId);
+    if (currentTask && currentTask.status !== "paused") {
       completeUpload(taskId);
     }
   } catch (error) {

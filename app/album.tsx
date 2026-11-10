@@ -125,7 +125,10 @@ export default function AlbumScreen() {
             if (selectedAlbums.length > 0) {
               toggleAlbumSelection(album.id);
             } else {
-              router.push(`/album/${album.id}`);
+              router.push({
+                pathname: "/album",
+                params: { albumId: String(album.id) },
+              });
             }
           }}
           onLongPress={() => toggleAlbumSelection(album.id)}

@@ -5,6 +5,9 @@ import { useLanguage } from "@/lib/language-provider";
 import { useNotificationCenter } from "@/hooks/use-notification-center";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { Notification, NotificationType } from "@/lib/notification-center";
+import type { ComponentProps } from "react";
+
+type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
 
 export function NotificationCenterUI() {
   const colors = useColors();
@@ -39,7 +42,7 @@ export function NotificationCenterUI() {
   }, [notifications, activeTab]);
 
   const getNotificationIcon = (type: NotificationType) => {
-    const icons: Record<NotificationType, string> = {
+    const icons: Record<NotificationType, MaterialIconName> = {
       comment: "comment",
       like: "favorite",
       share: "share",

@@ -48,7 +48,7 @@ class AdvancedSyncManager {
   private conflicts: Map<string, ConflictInfo> = new Map();
   private lastSyncTime = 0;
   private autoSyncEnabled = true;
-  private syncInterval: NodeJS.Timeout | null = null;
+  private syncInterval: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * 初始化网络监听
