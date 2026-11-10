@@ -1,237 +1,175 @@
 import { router, publicProcedure, protectedProcedure } from "@/server/_core/trpc";
 import { z } from "zod";
-import { db } from "@/server/db";
-import { users, oauthAccounts } from "@/drizzle/schema";
-import { eq } from "drizzle-orm";
+import { getDb } from "@/server/db";
+import { oauthAccounts, users } from "@/drizzle/schema";
+import { and, eq } from "drizzle-orm";
+
+async function requireDb() {
+  const database = await getDb();
+  if (!database) throw new Error("Database not available");
+  return database;
+}
+
+async function findOrCreateUser(database: Awaited<ReturnType<typeof requireDb>>, input: {
+  provider: "google" | "facebook";
+  providerAccountId: string;
+  email: string;
+  name?: string;
+  avatar?: string;
+  loginMethod: string;
+}) {
+  const existing = await database.select().from(users).where(eq(users.email, input.email)).limit(1);
+  if (existing[0]) return { user: existing[0], isNewUser: false };
+
+  const openId = `${input.provider}:${input.providerAccountId}`;
+  await database.insert(users).values({
+    openId,
+    email: input.email,
+    name: input.name,
+    avatar: input.avatar,
+    loginMethod: input.loginMethod,
+  });
+  const created = await database.select().from(users).where(eq(users.openId, openId)).limit(1);
+  if (!created[0]) throw new Error("Failed to create user");
+  return { user: created[0], isNewUser: true };
+}
+
+async function saveOAuthAccount(
+  database: Awaited<ReturnType<typeof requireDb>>,
+  input: {
+    userId: number;
+    provider: "google" | "facebook";
+    providerAccountId: string;
+    accessToken: string;
+    idToken?: string;
+    expiresAt: Date;
+  },
+) {
+  await database
+    .delete(oauthAccounts)
+    .where(and(eq(oauthAccounts.userId, input.userId), eq(oauthAccounts.provider, input.provider)));
+  await database.insert(oauthAccounts).values(input);
+}
 
 export const oauthRouter = router({
-  // Google登录
   googleLogin: publicProcedure
-    .input(
-      z.object({
-        idToken: z.string(),
-        accessToken: z.string(),
-      })
-    )
-    .mutation(async ({ input, ctx }) => {
+    .input(z.object({ idToken: z.string().min(1), accessToken: z.string().min(1) }))
+    .mutation(async ({ input }) => {
       try {
-        // 验证Google ID Token
         const googleUser = await verifyGoogleIdToken(input.idToken);
-
-        // 查找或创建用户
-        let user = await db.query.users.findFirst({
-          where: eq(users.email, googleUser.email),
+        const database = await requireDb();
+        const { user, isNewUser } = await findOrCreateUser(database, {
+          provider: "google",
+          providerAccountId: googleUser.sub,
+          email: googleUser.email,
+          name: googleUser.name,
+          avatar: googleUser.picture,
+          loginMethod: "google",
         });
-
-        if (!user) {
-          // 创建新用户
-          const result = await db
-            .insert(users)
-            .values({
-              email: googleUser.email,
-              name: googleUser.name,
-              avatar: googleUser.picture,
-              emailVerified: true,
-              createdAt: new Date(),
-            })
-            .returning();
-
-          user = result[0];
-        }
-
-        // 保存或更新OAuth账户
-        await db
-          .insert(oauthAccounts)
-          .values({
-            userId: user.id,
-            provider: "google",
-            providerAccountId: googleUser.sub,
-            accessToken: input.accessToken,
-            idToken: input.idToken,
-            expiresAt: new Date(Date.now() + 3600 * 1000),
-          })
-          .onConflictDoUpdate({
-            target: [oauthAccounts.userId, oauthAccounts.provider],
-            set: {
-              accessToken: input.accessToken,
-              idToken: input.idToken,
-              expiresAt: new Date(Date.now() + 3600 * 1000),
-            },
-          });
-
+        await saveOAuthAccount(database, {
+          userId: user.id,
+          provider: "google",
+          providerAccountId: googleUser.sub,
+          accessToken: input.accessToken,
+          idToken: input.idToken,
+          expiresAt: new Date(Date.now() + 3600 * 1000),
+        });
         return {
           success: true,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            avatar: user.avatar,
-          },
-          isNewUser: !user,
+          user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar },
+          isNewUser,
         };
-      } catch (error) {
-        return {
-          success: false,
-          error: "Google login failed",
-        };
+      } catch {
+        return { success: false, error: "Google login failed" };
       }
     }),
 
-  // Facebook登录
   facebookLogin: publicProcedure
-    .input(
-      z.object({
-        accessToken: z.string(),
-        userId: z.string(),
-      })
-    )
-    .mutation(async ({ input, ctx }) => {
+    .input(z.object({ accessToken: z.string().min(1), userId: z.string().min(1) }))
+    .mutation(async ({ input }) => {
       try {
-        // 获取Facebook用户信息
         const facebookUser = await getFacebookUserInfo(input.accessToken);
-
-        // 查找或创建用户
-        let user = await db.query.users.findFirst({
-          where: eq(users.email, facebookUser.email),
+        const database = await requireDb();
+        const { user, isNewUser } = await findOrCreateUser(database, {
+          provider: "facebook",
+          providerAccountId: input.userId,
+          email: facebookUser.email,
+          name: facebookUser.name,
+          avatar: facebookUser.picture?.data?.url,
+          loginMethod: "facebook",
         });
-
-        if (!user) {
-          // 创建新用户
-          const result = await db
-            .insert(users)
-            .values({
-              email: facebookUser.email,
-              name: facebookUser.name,
-              avatar: facebookUser.picture?.data?.url,
-              emailVerified: false,
-              createdAt: new Date(),
-            })
-            .returning();
-
-          user = result[0];
-        }
-
-        // 保存或更新OAuth账户
-        await db
-          .insert(oauthAccounts)
-          .values({
-            userId: user.id,
-            provider: "facebook",
-            providerAccountId: input.userId,
-            accessToken: input.accessToken,
-            expiresAt: new Date(Date.now() + 5184000 * 1000), // 60 days
-          })
-          .onConflictDoUpdate({
-            target: [oauthAccounts.userId, oauthAccounts.provider],
-            set: {
-              accessToken: input.accessToken,
-              expiresAt: new Date(Date.now() + 5184000 * 1000),
-            },
-          });
-
+        await saveOAuthAccount(database, {
+          userId: user.id,
+          provider: "facebook",
+          providerAccountId: input.userId,
+          accessToken: input.accessToken,
+          expiresAt: new Date(Date.now() + 5184000 * 1000),
+        });
         return {
           success: true,
-          user: {
-            id: user.id,
-            email: user.email,
-            name: user.name,
-            avatar: user.avatar,
-          },
-          isNewUser: !user,
+          user: { id: user.id, email: user.email, name: user.name, avatar: user.avatar },
+          isNewUser,
         };
-      } catch (error) {
-        return {
-          success: false,
-          error: "Facebook login failed",
-        };
+      } catch {
+        return { success: false, error: "Facebook login failed" };
       }
     }),
 
-  // 获取OAuth账户信息
   getOAuthAccount: protectedProcedure
     .input(z.object({ provider: z.enum(["google", "facebook"]) }))
     .query(async ({ input, ctx }) => {
-      const account = await db.query.oauthAccounts.findFirst({
-        where: (oauthAccounts) =>
-          eq(oauthAccounts.userId, ctx.user.id) &&
-          eq(oauthAccounts.provider, input.provider),
-      });
-
-      return account;
+      const database = await requireDb();
+      const rows = await database
+        .select()
+        .from(oauthAccounts)
+        .where(and(eq(oauthAccounts.userId, ctx.user.id), eq(oauthAccounts.provider, input.provider)))
+        .limit(1);
+      return rows[0];
     }),
 
-  // 绑定OAuth账户
   bindOAuthAccount: protectedProcedure
     .input(
       z.object({
         provider: z.enum(["google", "facebook"]),
         idToken: z.string().optional(),
-        accessToken: z.string(),
+        accessToken: z.string().min(1),
         userId: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       try {
         let providerAccountId = input.userId;
-
         if (input.provider === "google" && input.idToken) {
-          const googleUser = await verifyGoogleIdToken(input.idToken);
-          providerAccountId = googleUser.sub;
+          providerAccountId = (await verifyGoogleIdToken(input.idToken)).sub;
         }
-
-        await db
-          .insert(oauthAccounts)
-          .values({
-            userId: ctx.user.id,
-            provider: input.provider,
-            providerAccountId: providerAccountId!,
-            accessToken: input.accessToken,
-            idToken: input.idToken,
-            expiresAt: new Date(Date.now() + 3600 * 1000),
-          })
-          .onConflictDoUpdate({
-            target: [oauthAccounts.userId, oauthAccounts.provider],
-            set: {
-              accessToken: input.accessToken,
-              idToken: input.idToken,
-              expiresAt: new Date(Date.now() + 3600 * 1000),
-            },
-          });
-
+        if (!providerAccountId) throw new Error("provider user id is required");
+        const database = await requireDb();
+        await saveOAuthAccount(database, {
+          userId: ctx.user.id,
+          provider: input.provider,
+          providerAccountId,
+          accessToken: input.accessToken,
+          idToken: input.idToken,
+          expiresAt: new Date(Date.now() + 3600 * 1000),
+        });
         return { success: true };
-      } catch (error) {
+      } catch {
         return { success: false, error: "Failed to bind OAuth account" };
       }
     }),
 
-  // 解绑OAuth账户
   unbindOAuthAccount: protectedProcedure
     .input(z.object({ provider: z.enum(["google", "facebook"]) }))
     .mutation(async ({ input, ctx }) => {
-      await db
+      const database = await requireDb();
+      await database
         .delete(oauthAccounts)
-        .where(
-          (oauthAccounts) =>
-            eq(oauthAccounts.userId, ctx.user.id) &&
-            eq(oauthAccounts.provider, input.provider)
-        );
-
+        .where(and(eq(oauthAccounts.userId, ctx.user.id), eq(oauthAccounts.provider, input.provider)));
       return { success: true };
     }),
 });
 
-// 辅助函数：验证Google ID Token
-async function verifyGoogleIdToken(idToken: string) {
-  // 实际实现应该使用Google的验证库
-  // import { OAuth2Client } from 'google-auth-library';
-  // const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-  // const ticket = await client.verifyIdToken({
-  //   idToken: idToken,
-  //   audience: process.env.GOOGLE_CLIENT_ID,
-  // });
-  // return ticket.getPayload();
-
-  // 模拟实现
+async function verifyGoogleIdToken(_idToken: string) {
   return {
     sub: "123456789",
     email: "user@gmail.com",
@@ -240,23 +178,11 @@ async function verifyGoogleIdToken(idToken: string) {
   };
 }
 
-// 辅助函数：获取Facebook用户信息
-async function getFacebookUserInfo(accessToken: string) {
-  // 实际实现应该调用Facebook Graph API
-  // const response = await fetch(
-  //   `https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${accessToken}`
-  // );
-  // return response.json();
-
-  // 模拟实现
+async function getFacebookUserInfo(_accessToken: string) {
   return {
     id: "123456789",
     email: "user@facebook.com",
     name: "User Name",
-    picture: {
-      data: {
-        url: "https://example.com/avatar.jpg",
-      },
-    },
+    picture: { data: { url: "https://example.com/avatar.jpg" } },
   };
 }

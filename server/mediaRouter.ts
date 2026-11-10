@@ -1,153 +1,141 @@
-import { router, publicProcedure, protectedProcedure } from "@/server/_core/trpc";
+import { router, protectedProcedure } from "@/server/_core/trpc";
 import { z } from "zod";
-import { db } from "@/server/db";
-import { media, albums } from "@/drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { getDb } from "@/server/db";
+import { media } from "@/drizzle/schema";
+import { and, desc, eq } from "drizzle-orm";
+
+const mediaIdInput = z.coerce.number().int().positive();
+const albumIdInput = z.coerce.number().int().positive();
+
+async function requireDb() {
+  const database = await getDb();
+  if (!database) throw new Error("Database not available");
+  return database;
+}
+
+const mediaTypeInput = z.enum(["image", "video"]);
+type ClientMediaType = z.infer<typeof mediaTypeInput>;
+const toDbMediaType = (type: ClientMediaType): "photo" | "video" =>
+  type === "image" ? "photo" : "video";
 
 export const mediaRouter = router({
-  // 初始化上传
   initUpload: protectedProcedure
     .input(
       z.object({
-        fileName: z.string(),
-        fileSize: z.number(),
-        fileType: z.enum(["image", "video"]),
-        albumId: z.string(),
-      })
+        fileName: z.string().min(1),
+        fileSize: z.number().int().nonnegative(),
+        fileType: mediaTypeInput,
+        albumId: albumIdInput,
+      }),
     )
-    .mutation(async ({ input, ctx }) => {
-      const uploadId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const presignedUrl = generatePresignedUrl(uploadId, input.fileName);
-
+    .mutation(async ({ input }) => {
+      const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
       return {
         uploadId,
-        presignedUrl,
-        chunkSize: 5 * 1024 * 1024, // 5MB chunks
+        presignedUrl: generatePresignedUrl(uploadId, input.fileName),
+        chunkSize: 5 * 1024 * 1024,
       };
     }),
 
-  // 完成上传
   completeUpload: protectedProcedure
     .input(
       z.object({
-        uploadId: z.string(),
-        fileName: z.string(),
-        fileSize: z.number(),
-        fileType: z.enum(["image", "video"]),
-        albumId: z.string(),
+        uploadId: z.string().min(1),
+        fileName: z.string().min(1),
+        fileSize: z.number().int().nonnegative(),
+        fileType: mediaTypeInput,
+        albumId: albumIdInput,
+        familyId: z.coerce.number().int().positive(),
         title: z.string().optional(),
         description: z.string().optional(),
-        tags: z.array(z.string()).optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
-      const s3Url = `https://${process.env.AWS_S3_BUCKET}.s3.amazonaws.com/${input.uploadId}/${input.fileName}`;
+      const database = await requireDb();
+      const s3Url = `https://${process.env.AWS_S3_BUCKET ?? "golden-memory"}.s3.amazonaws.com/${input.uploadId}/${input.fileName}`;
+      const inserted = await database.insert(media).values({
+        albumId: input.albumId,
+        familyId: input.familyId,
+        uploadedBy: ctx.user.id,
+        type: toDbMediaType(input.fileType),
+        url: s3Url,
+        thumbnail: input.fileType === "image" ? s3Url : undefined,
+        title: input.title ?? input.fileName,
+        description: input.description,
+        fileSize: input.fileSize,
+      });
 
-      // 创建媒体记录
-      const result = await db
-        .insert(media)
-        .values({
-          albumId: input.albumId,
-          userId: ctx.user.id,
-          type: input.fileType,
-          url: s3Url,
-          thumbnailUrl: input.fileType === "image" ? s3Url : null,
-          title: input.title || input.fileName,
-          description: input.description,
-          size: input.fileSize,
-          metadata: {
-            uploadId: input.uploadId,
-            tags: input.tags || [],
-          },
-          createdAt: new Date(),
-        })
-        .returning();
-
-      return result[0];
+      const rows = await database
+        .select()
+        .from(media)
+        .where(eq(media.id, Number(inserted[0].insertId)))
+        .limit(1);
+      return rows[0];
     }),
 
-  // 获取媒体列表
   getMediaList: protectedProcedure
     .input(
       z.object({
-        albumId: z.string(),
-        skip: z.number().default(0),
-        take: z.number().default(20),
-        type: z.enum(["image", "video"]).optional(),
-      })
+        albumId: albumIdInput,
+        skip: z.coerce.number().int().min(0).default(0),
+        take: z.coerce.number().int().min(1).max(100).default(20),
+        type: mediaTypeInput.optional(),
+      }),
     )
-    .query(async ({ input, ctx }) => {
-      const mediaList = await db.query.media.findMany({
-        where: and(
-          eq(media.albumId, input.albumId),
-          input.type ? eq(media.type, input.type) : undefined
-        ),
-        orderBy: (media) => media.createdAt,
-        limit: input.take,
-        offset: input.skip,
-      });
-
-      return mediaList;
-    }),
-
-  // 获取媒体详情
-  getMedia: protectedProcedure
-    .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
-      const result = await db.query.media.findFirst({
-        where: eq(media.id, input.id),
-      });
-
-      return result;
+      const database = await requireDb();
+      return database
+        .select()
+        .from(media)
+        .where(
+          and(
+            eq(media.albumId, input.albumId),
+            input.type ? eq(media.type, toDbMediaType(input.type)) : undefined,
+          ),
+        )
+        .orderBy(desc(media.createdAt))
+        .limit(input.take)
+        .offset(input.skip);
     }),
 
-  // 更新媒体
+  getMedia: protectedProcedure
+    .input(z.object({ id: mediaIdInput }))
+    .query(async ({ input }) => {
+      const database = await requireDb();
+      const rows = await database.select().from(media).where(eq(media.id, input.id)).limit(1);
+      return rows[0];
+    }),
+
   updateMedia: protectedProcedure
     .input(
       z.object({
-        id: z.string(),
+        id: mediaIdInput,
         title: z.string().optional(),
         description: z.string().optional(),
-        tags: z.array(z.string()).optional(),
-      })
+      }),
     )
-    .mutation(async ({ input, ctx }) => {
-      const result = await db
+    .mutation(async ({ input }) => {
+      const database = await requireDb();
+      await database
         .update(media)
-        .set({
-          title: input.title,
-          description: input.description,
-          metadata: input.tags ? { tags: input.tags } : undefined,
-        })
-        .where(eq(media.id, input.id))
-        .returning();
-
-      return result[0];
+        .set({ title: input.title, description: input.description })
+        .where(eq(media.id, input.id));
+      const rows = await database.select().from(media).where(eq(media.id, input.id)).limit(1);
+      return rows[0];
     }),
 
-  // 删除媒体
   deleteMedia: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ input, ctx }) => {
-      await db.delete(media).where(eq(media.id, input.id));
+    .input(z.object({ id: mediaIdInput }))
+    .mutation(async ({ input }) => {
+      const database = await requireDb();
+      await database.delete(media).where(eq(media.id, input.id));
       return { success: true };
     }),
 });
 
-// 辅助函数：生成预签名URL
 function generatePresignedUrl(uploadId: string, fileName: string): string {
-  // 这是一个模拟实现，实际应该使用AWS SDK生成真实的预签名URL
-  const key = `${uploadId}/${fileName}`;
+  const key = `${uploadId}/${encodeURIComponent(fileName)}`;
   const bucket = process.env.AWS_S3_BUCKET || "golden-memory";
   const region = process.env.AWS_REGION || "us-east-1";
-
-  // 实际实现应该使用AWS SDK的getSignedUrl方法
-  // const s3 = new AWS.S3();
-  // const presignedUrl = s3.getSignedUrl('putObject', {
-  //   Bucket: bucket,
-  //   Key: key,
-  //   Expires: 3600,
-  // });
-
   return `https://${bucket}.s3.${region}.amazonaws.com/${key}`;
 }

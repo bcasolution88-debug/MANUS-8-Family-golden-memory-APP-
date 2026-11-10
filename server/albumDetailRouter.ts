@@ -1,211 +1,175 @@
 import { router, protectedProcedure } from "@/server/_core/trpc";
 import { z } from "zod";
-import { db } from "@/server/db";
-import { albums, familyMembers } from "@/drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { getDb } from "@/server/db";
+import { albums, comments, familyMembers, likes, media } from "@/drizzle/schema";
+import { and, desc, eq } from "drizzle-orm";
+
+const albumIdInput = z.coerce.number().int().positive();
+const familyIdInput = z.coerce.number().int().positive();
+
+async function requireDb() {
+  const database = await getDb();
+  if (!database) throw new Error("Database not available");
+  return database;
+}
 
 export const albumDetailRouter = router({
-  // 创建相册
   createAlbum: protectedProcedure
     .input(
       z.object({
-        familyId: z.string(),
-        title: z.string(),
+        familyId: familyIdInput,
+        title: z.string().min(1),
         description: z.string().optional(),
         type: z.enum(["anniversary", "memory", "timeline", "story"]).default("memory"),
         isPrivate: z.boolean().default(false),
-        coverImage: z.string().optional(),
-      })
+        coverImage: z.string().url().optional(),
+      }),
     )
     .mutation(async ({ input, ctx }) => {
-      // 验证用户是否是家庭成员
-      const member = await db.query.familyMembers.findFirst({
-        where: (familyMembers) =>
-          and(
-            eq(familyMembers.familyId, input.familyId),
-            eq(familyMembers.userId, ctx.user.id)
-          ),
+      const database = await requireDb();
+      const member = await database
+        .select({ id: familyMembers.id })
+        .from(familyMembers)
+        .where(and(eq(familyMembers.familyId, input.familyId), eq(familyMembers.userId, ctx.user.id)))
+        .limit(1);
+
+      if (member.length === 0) throw new Error("User is not a member of this family");
+
+      const inserted = await database.insert(albums).values({
+        familyId: input.familyId,
+        createdBy: ctx.user.id,
+        name: input.title,
+        description: input.description,
+        category: input.type,
+        isPrivate: input.isPrivate,
+        thumbnail: input.coverImage,
       });
 
-      if (!member) {
-        throw new Error("User is not a member of this family");
-      }
-
-      const result = await db
-        .insert(albums)
-        .values({
-          familyId: input.familyId,
-          createdBy: ctx.user.id,
-          title: input.title,
-          description: input.description,
-          type: input.type,
-          isPrivate: input.isPrivate,
-          coverImage: input.coverImage,
-          createdAt: new Date(),
-        })
-        .returning();
-
-      return result[0];
+      const created = await database
+        .select()
+        .from(albums)
+        .where(eq(albums.id, Number(inserted[0].insertId)))
+        .limit(1);
+      return created[0];
     }),
 
-  // 获取相册列表
   getAlbums: protectedProcedure
     .input(
       z.object({
-        familyId: z.string(),
+        familyId: familyIdInput,
         type: z.enum(["anniversary", "memory", "timeline", "story"]).optional(),
-        skip: z.number().default(0),
-        take: z.number().default(20),
-      })
+        skip: z.coerce.number().int().min(0).default(0),
+        take: z.coerce.number().int().min(1).max(100).default(20),
+      }),
     )
     .query(async ({ input, ctx }) => {
-      // 验证用户是否是家庭成员
-      const member = await db.query.familyMembers.findFirst({
-        where: (familyMembers) =>
-          and(
-            eq(familyMembers.familyId, input.familyId),
-            eq(familyMembers.userId, ctx.user.id)
-          ),
-      });
+      const database = await requireDb();
+      const member = await database
+        .select({ id: familyMembers.id })
+        .from(familyMembers)
+        .where(and(eq(familyMembers.familyId, input.familyId), eq(familyMembers.userId, ctx.user.id)))
+        .limit(1);
+      if (member.length === 0) throw new Error("User is not a member of this family");
 
-      if (!member) {
-        throw new Error("User is not a member of this family");
-      }
-
-      const albumList = await db.query.albums.findMany({
-        where: (albums) =>
+      return database
+        .select()
+        .from(albums)
+        .where(
           and(
             eq(albums.familyId, input.familyId),
-            input.type ? eq(albums.type, input.type) : undefined
+            input.type ? eq(albums.category, input.type) : undefined,
           ),
-        orderBy: (albums) => albums.createdAt,
-        limit: input.take,
-        offset: input.skip,
-      });
-
-      return albumList;
+        )
+        .orderBy(desc(albums.createdAt))
+        .limit(input.take)
+        .offset(input.skip);
     }),
 
-  // 获取相册详情
   getAlbum: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: albumIdInput }))
     .query(async ({ input, ctx }) => {
-      const album = await db.query.albums.findFirst({
-        where: eq(albums.id, input.id),
-      });
+      const database = await requireDb();
+      const albumRows = await database.select().from(albums).where(eq(albums.id, input.id)).limit(1);
+      const album = albumRows[0];
+      if (!album) throw new Error("Album not found");
 
-      if (!album) {
-        throw new Error("Album not found");
-      }
-
-      // 验证用户是否有权限访问
-      const member = await db.query.familyMembers.findFirst({
-        where: (familyMembers) =>
-          and(
-            eq(familyMembers.familyId, album.familyId),
-            eq(familyMembers.userId, ctx.user.id)
-          ),
-      });
-
-      if (!member && album.isPrivate) {
-        throw new Error("Access denied");
-      }
-
+      const member = await database
+        .select({ id: familyMembers.id })
+        .from(familyMembers)
+        .where(and(eq(familyMembers.familyId, album.familyId), eq(familyMembers.userId, ctx.user.id)))
+        .limit(1);
+      if (album.isPrivate && member.length === 0) throw new Error("Access denied");
       return album;
     }),
 
-  // 更新相册
   updateAlbum: protectedProcedure
     .input(
       z.object({
-        id: z.string(),
-        title: z.string().optional(),
+        id: albumIdInput,
+        title: z.string().min(1).optional(),
         description: z.string().optional(),
-        coverImage: z.string().optional(),
+        coverImage: z.string().url().nullable().optional(),
         isPrivate: z.boolean().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
-      const album = await db.query.albums.findFirst({
-        where: eq(albums.id, input.id),
-      });
+      const database = await requireDb();
+      const rows = await database.select().from(albums).where(eq(albums.id, input.id)).limit(1);
+      const album = rows[0];
+      if (!album) throw new Error("Album not found");
+      if (album.createdBy !== ctx.user.id) throw new Error("Only album creator can update");
 
-      if (!album) {
-        throw new Error("Album not found");
-      }
-
-      // 验证用户是否是相册创建者
-      if (album.createdBy !== ctx.user.id) {
-        throw new Error("Only album creator can update");
-      }
-
-      const result = await db
+      await database
         .update(albums)
         .set({
-          title: input.title,
+          name: input.title,
           description: input.description,
-          coverImage: input.coverImage,
+          thumbnail: input.coverImage,
           isPrivate: input.isPrivate,
         })
-        .where(eq(albums.id, input.id))
-        .returning();
-
-      return result[0];
+        .where(eq(albums.id, input.id));
+      const updated = await database.select().from(albums).where(eq(albums.id, input.id)).limit(1);
+      return updated[0];
     }),
 
-  // 删除相册
   deleteAlbum: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: albumIdInput }))
     .mutation(async ({ input, ctx }) => {
-      const album = await db.query.albums.findFirst({
-        where: eq(albums.id, input.id),
-      });
-
-      if (!album) {
-        throw new Error("Album not found");
-      }
-
-      // 验证用户是否是相册创建者
-      if (album.createdBy !== ctx.user.id) {
-        throw new Error("Only album creator can delete");
-      }
-
-      await db.delete(albums).where(eq(albums.id, input.id));
-
+      const database = await requireDb();
+      const rows = await database.select().from(albums).where(eq(albums.id, input.id)).limit(1);
+      const album = rows[0];
+      if (!album) throw new Error("Album not found");
+      if (album.createdBy !== ctx.user.id) throw new Error("Only album creator can delete");
+      await database.delete(albums).where(eq(albums.id, input.id));
       return { success: true };
     }),
 
-  // 获取相册统计信息
   getAlbumStats: protectedProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ input, ctx }) => {
-      const album = await db.query.albums.findFirst({
-        where: eq(albums.id, input.id),
-      });
+    .input(z.object({ id: albumIdInput }))
+    .query(async ({ input }) => {
+      const database = await requireDb();
+      const rows = await database.select().from(albums).where(eq(albums.id, input.id)).limit(1);
+      const album = rows[0];
+      if (!album) throw new Error("Album not found");
 
-      if (!album) {
-        throw new Error("Album not found");
-      }
-
-      // 获取媒体数量
-      const mediaCount = await db.query.media.findMany({
-        where: (media) => eq(media.albumId, input.id),
-      });
-
-      // 获取评论数量
-      const commentCount = await db.query.comments.findMany({
-        where: (comments) => eq(comments.albumId, input.id),
-      });
-
-      // 获取点赞数量
-      const likeCount = await db.query.likes.findMany({
-        where: (likes) => eq(likes.albumId, input.id),
-      });
+      const [mediaRows, commentRows, likeRows] = await Promise.all([
+        database.select({ id: media.id }).from(media).where(eq(media.albumId, input.id)),
+        database
+          .select({ id: comments.id })
+          .from(comments)
+          .innerJoin(media, eq(comments.mediaId, media.id))
+          .where(eq(media.albumId, input.id)),
+        database
+          .select({ id: likes.id })
+          .from(likes)
+          .innerJoin(media, eq(likes.mediaId, media.id))
+          .where(eq(media.albumId, input.id)),
+      ]);
 
       return {
-        mediaCount: mediaCount.length,
-        commentCount: commentCount.length,
-        likeCount: likeCount.length,
+        mediaCount: mediaRows.length,
+        commentCount: commentRows.length,
+        likeCount: likeRows.length,
         createdAt: album.createdAt,
         updatedAt: album.updatedAt,
       };

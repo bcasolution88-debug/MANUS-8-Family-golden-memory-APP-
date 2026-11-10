@@ -1,269 +1,200 @@
 import { router, protectedProcedure } from "@/server/_core/trpc";
 import { z } from "zod";
-import { db } from "@/server/db";
+import { getDb } from "@/server/db";
 import { comments, likes, shares } from "@/drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
+
+const mediaIdInput = z.coerce.number().int().positive();
+const commentIdInput = z.coerce.number().int().positive();
+
+async function requireDb() {
+  const database = await getDb();
+  if (!database) throw new Error("Database not available");
+  return database;
+}
 
 export const interactionRouter = router({
-  // 创建评论
   createComment: protectedProcedure
     .input(
       z.object({
-        mediaId: z.string(),
-        albumId: z.string(),
-        content: z.string(),
-        mentions: z.array(z.string()).optional(),
-      })
+        mediaId: mediaIdInput,
+        content: z.string().min(1),
+        rating: z.number().int().min(1).max(5).optional(),
+      }),
     )
     .mutation(async ({ input, ctx }) => {
-      const result = await db
-        .insert(comments)
-        .values({
-          mediaId: input.mediaId,
-          albumId: input.albumId,
-          userId: ctx.user.id,
-          content: input.content,
-          mentions: input.mentions || [],
-          createdAt: new Date(),
-        })
-        .returning();
-
-      return result[0];
+      const database = await requireDb();
+      const inserted = await database.insert(comments).values({
+        mediaId: input.mediaId,
+        userId: ctx.user.id,
+        content: input.content,
+        rating: input.rating,
+      });
+      const rows = await database
+        .select()
+        .from(comments)
+        .where(eq(comments.id, Number(inserted[0].insertId)))
+        .limit(1);
+      return rows[0];
     }),
 
-  // 获取评论列表
   getComments: protectedProcedure
     .input(
       z.object({
-        mediaId: z.string().optional(),
-        albumId: z.string().optional(),
-        skip: z.number().default(0),
-        take: z.number().default(20),
-      })
+        mediaId: mediaIdInput.optional(),
+        skip: z.coerce.number().int().min(0).default(0),
+        take: z.coerce.number().int().min(1).max(100).default(20),
+      }),
     )
     .query(async ({ input }) => {
-      const commentList = await db.query.comments.findMany({
-        where: (comments) =>
-          and(
-            input.mediaId ? eq(comments.mediaId, input.mediaId) : undefined,
-            input.albumId ? eq(comments.albumId, input.albumId) : undefined
-          ),
-        orderBy: (comments) => comments.createdAt,
-        limit: input.take,
-        offset: input.skip,
-      });
-
-      return commentList;
+      const database = await requireDb();
+      return database
+        .select()
+        .from(comments)
+        .where(input.mediaId ? eq(comments.mediaId, input.mediaId) : undefined)
+        .orderBy(desc(comments.createdAt))
+        .limit(input.take)
+        .offset(input.skip);
     }),
 
-  // 删除评论
   deleteComment: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: commentIdInput }))
     .mutation(async ({ input, ctx }) => {
-      const comment = await db.query.comments.findFirst({
-        where: eq(comments.id, input.id),
-      });
-
-      if (!comment) {
-        throw new Error("Comment not found");
-      }
-
-      if (comment.userId !== ctx.user.id) {
-        throw new Error("Only comment author can delete");
-      }
-
-      await db.delete(comments).where(eq(comments.id, input.id));
-
+      const database = await requireDb();
+      const rows = await database.select().from(comments).where(eq(comments.id, input.id)).limit(1);
+      const comment = rows[0];
+      if (!comment) throw new Error("Comment not found");
+      if (comment.userId !== ctx.user.id) throw new Error("Only comment author can delete");
+      await database.delete(comments).where(eq(comments.id, input.id));
       return { success: true };
     }),
 
-  // 点赞
   createLike: protectedProcedure
-    .input(
-      z.object({
-        mediaId: z.string().optional(),
-        albumId: z.string().optional(),
-        commentId: z.string().optional(),
-      })
-    )
+    .input(z.object({ mediaId: mediaIdInput }))
     .mutation(async ({ input, ctx }) => {
-      // 检查是否已经点赞
-      const existingLike = await db.query.likes.findFirst({
-        where: (likes) =>
-          and(
-            eq(likes.userId, ctx.user.id),
-            input.mediaId ? eq(likes.mediaId, input.mediaId) : undefined,
-            input.albumId ? eq(likes.albumId, input.albumId) : undefined,
-            input.commentId ? eq(likes.commentId, input.commentId) : undefined
-          ),
+      const database = await requireDb();
+      const existing = await database
+        .select()
+        .from(likes)
+        .where(and(eq(likes.userId, ctx.user.id), eq(likes.mediaId, input.mediaId)))
+        .limit(1);
+      if (existing.length > 0) throw new Error("Already liked");
+
+      const inserted = await database.insert(likes).values({
+        userId: ctx.user.id,
+        mediaId: input.mediaId,
       });
-
-      if (existingLike) {
-        throw new Error("Already liked");
-      }
-
-      const result = await db
-        .insert(likes)
-        .values({
-          userId: ctx.user.id,
-          mediaId: input.mediaId,
-          albumId: input.albumId,
-          commentId: input.commentId,
-          createdAt: new Date(),
-        })
-        .returning();
-
-      return result[0];
+      const rows = await database
+        .select()
+        .from(likes)
+        .where(eq(likes.id, Number(inserted[0].insertId)))
+        .limit(1);
+      return rows[0];
     }),
 
-  // 取消点赞
   deleteLike: protectedProcedure
-    .input(
-      z.object({
-        mediaId: z.string().optional(),
-        albumId: z.string().optional(),
-        commentId: z.string().optional(),
-      })
-    )
+    .input(z.object({ mediaId: mediaIdInput }))
     .mutation(async ({ input, ctx }) => {
-      await db
+      const database = await requireDb();
+      await database
         .delete(likes)
-        .where(
-          and(
-            eq(likes.userId, ctx.user.id),
-            input.mediaId ? eq(likes.mediaId, input.mediaId) : undefined,
-            input.albumId ? eq(likes.albumId, input.albumId) : undefined,
-            input.commentId ? eq(likes.commentId, input.commentId) : undefined
-          )
-        );
-
+        .where(and(eq(likes.userId, ctx.user.id), eq(likes.mediaId, input.mediaId)));
       return { success: true };
     }),
 
-  // 获取点赞列表
   getLikes: protectedProcedure
     .input(
       z.object({
-        mediaId: z.string().optional(),
-        albumId: z.string().optional(),
-        commentId: z.string().optional(),
-        skip: z.number().default(0),
-        take: z.number().default(20),
-      })
+        mediaId: mediaIdInput,
+        skip: z.coerce.number().int().min(0).default(0),
+        take: z.coerce.number().int().min(1).max(100).default(20),
+      }),
     )
     .query(async ({ input }) => {
-      const likeList = await db.query.likes.findMany({
-        where: (likes) =>
-          and(
-            input.mediaId ? eq(likes.mediaId, input.mediaId) : undefined,
-            input.albumId ? eq(likes.albumId, input.albumId) : undefined,
-            input.commentId ? eq(likes.commentId, input.commentId) : undefined
-          ),
-        orderBy: (likes) => likes.createdAt,
-        limit: input.take,
-        offset: input.skip,
-      });
-
-      return likeList;
+      const database = await requireDb();
+      return database
+        .select()
+        .from(likes)
+        .where(eq(likes.mediaId, input.mediaId))
+        .orderBy(desc(likes.createdAt))
+        .limit(input.take)
+        .offset(input.skip);
     }),
 
-  // 创建分享
   createShare: protectedProcedure
     .input(
       z.object({
-        mediaId: z.string().optional(),
-        albumId: z.string().optional(),
+        mediaId: mediaIdInput.optional(),
+        albumId: z.coerce.number().int().positive().optional(),
         platform: z.enum(["wechat", "facebook", "instagram", "whatsapp", "link"]),
         caption: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
-      const shareId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-      const result = await db
-        .insert(shares)
-        .values({
-          id: shareId,
-          userId: ctx.user.id,
-          mediaId: input.mediaId,
-          albumId: input.albumId,
-          platform: input.platform,
-          caption: input.caption,
-          shareUrl: `${process.env.APP_URL}/share/${shareId}`,
-          createdAt: new Date(),
-        })
-        .returning();
-
-      return result[0];
+      if (!input.mediaId && !input.albumId) throw new Error("mediaId or albumId is required");
+      const database = await requireDb();
+      const shareId = `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+      const shareUrl = `${process.env.APP_URL ?? "http://localhost:3000"}/share/${shareId}`;
+      await database.insert(shares).values({
+        id: shareId,
+        userId: ctx.user.id,
+        mediaId: input.mediaId,
+        albumId: input.albumId,
+        platform: input.platform,
+        caption: input.caption,
+        shareUrl,
+      });
+      const rows = await database.select().from(shares).where(eq(shares.id, shareId)).limit(1);
+      return rows[0];
     }),
 
-  // 获取分享列表
   getShares: protectedProcedure
     .input(
       z.object({
-        mediaId: z.string().optional(),
-        albumId: z.string().optional(),
-        skip: z.number().default(0),
-        take: z.number().default(20),
-      })
+        mediaId: mediaIdInput.optional(),
+        albumId: z.coerce.number().int().positive().optional(),
+        skip: z.coerce.number().int().min(0).default(0),
+        take: z.coerce.number().int().min(1).max(100).default(20),
+      }),
     )
     .query(async ({ input, ctx }) => {
-      const shareList = await db.query.shares.findMany({
-        where: (shares) =>
+      const database = await requireDb();
+      return database
+        .select()
+        .from(shares)
+        .where(
           and(
             eq(shares.userId, ctx.user.id),
             input.mediaId ? eq(shares.mediaId, input.mediaId) : undefined,
-            input.albumId ? eq(shares.albumId, input.albumId) : undefined
+            input.albumId ? eq(shares.albumId, input.albumId) : undefined,
           ),
-        orderBy: (shares) => shares.createdAt,
-        limit: input.take,
-        offset: input.skip,
-      });
-
-      return shareList;
+        )
+        .orderBy(desc(shares.createdAt))
+        .limit(input.take)
+        .offset(input.skip);
     }),
 
-  // 获取分享统计
   getShareStats: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string().min(1) }))
     .query(async ({ input }) => {
-      const share = await db.query.shares.findFirst({
-        where: eq(shares.id, input.id),
-      });
-
-      if (!share) {
-        throw new Error("Share not found");
-      }
-
-      return {
-        id: share.id,
-        platform: share.platform,
-        clicks: share.clicks || 0,
-        shares: share.shares || 0,
-        createdAt: share.createdAt,
-        expiresAt: share.expiresAt,
-      };
+      const database = await requireDb();
+      const rows = await database.select().from(shares).where(eq(shares.id, input.id)).limit(1);
+      const share = rows[0];
+      if (!share) throw new Error("Share not found");
+      return share;
     }),
 
-  // 记录分享点击
   recordShareClick: protectedProcedure
-    .input(z.object({ id: z.string() }))
+    .input(z.object({ id: z.string().min(1) }))
     .mutation(async ({ input }) => {
-      const share = await db.query.shares.findFirst({
-        where: eq(shares.id, input.id),
-      });
-
-      if (!share) {
-        throw new Error("Share not found");
-      }
-
-      await db
+      const database = await requireDb();
+      const rows = await database.select().from(shares).where(eq(shares.id, input.id)).limit(1);
+      const share = rows[0];
+      if (!share) throw new Error("Share not found");
+      await database
         .update(shares)
-        .set({
-          clicks: (share.clicks || 0) + 1,
-        })
+        .set({ clicks: share.clicks + 1 })
         .where(eq(shares.id, input.id));
-
       return { success: true };
     }),
 });

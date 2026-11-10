@@ -15,6 +15,13 @@
       "when": 1783868902257,
       "tag": "0001_fat_taskmaster",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1794350113862,
+      "tag": "0002_tranquil_mesmero",
+      "breakpoints": true
     }
   ]
 }

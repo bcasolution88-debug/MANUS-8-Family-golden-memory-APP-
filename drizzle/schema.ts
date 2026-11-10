@@ -6,12 +6,7 @@ import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, decimal,
  * Columns use camelCase to match both database fields and generated types.
  */
 export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
   id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
@@ -27,9 +22,6 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-/**
- * Family table - represents a family group
- */
 export const families = mysqlTable("families", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -42,9 +34,6 @@ export const families = mysqlTable("families", {
 export type Family = typeof families.$inferSelect;
 export type InsertFamily = typeof families.$inferInsert;
 
-/**
- * Family members table - tracks users in a family
- */
 export const familyMembers = mysqlTable("familyMembers", {
   id: int("id").autoincrement().primaryKey(),
   familyId: int("familyId").notNull(),
@@ -56,9 +45,6 @@ export const familyMembers = mysqlTable("familyMembers", {
 export type FamilyMember = typeof familyMembers.$inferSelect;
 export type InsertFamilyMember = typeof familyMembers.$inferInsert;
 
-/**
- * Albums table - represents photo/video albums
- */
 export const albums = mysqlTable("albums", {
   id: int("id").autoincrement().primaryKey(),
   familyId: int("familyId").notNull(),
@@ -75,9 +61,6 @@ export const albums = mysqlTable("albums", {
 export type Album = typeof albums.$inferSelect;
 export type InsertAlbum = typeof albums.$inferInsert;
 
-/**
- * Media table - represents photos and videos
- */
 export const media = mysqlTable("media", {
   id: int("id").autoincrement().primaryKey(),
   albumId: int("albumId").notNull(),
@@ -99,9 +82,6 @@ export const media = mysqlTable("media", {
 export type Media = typeof media.$inferSelect;
 export type InsertMedia = typeof media.$inferInsert;
 
-/**
- * Likes table - tracks user likes on media
- */
 export const likes = mysqlTable("likes", {
   id: int("id").autoincrement().primaryKey(),
   mediaId: int("mediaId").notNull(),
@@ -112,9 +92,6 @@ export const likes = mysqlTable("likes", {
 export type Like = typeof likes.$inferSelect;
 export type InsertLike = typeof likes.$inferInsert;
 
-/**
- * Comments table - tracks comments on media
- */
 export const comments = mysqlTable("comments", {
   id: int("id").autoincrement().primaryKey(),
   mediaId: int("mediaId").notNull(),
@@ -128,9 +105,6 @@ export const comments = mysqlTable("comments", {
 export type Comment = typeof comments.$inferSelect;
 export type InsertComment = typeof comments.$inferInsert;
 
-/**
- * Love Stories table - tracks love story chapters
- */
 export const loveStories = mysqlTable("loveStories", {
   id: int("id").autoincrement().primaryKey(),
   familyId: int("familyId").notNull(),
@@ -148,9 +122,6 @@ export const loveStories = mysqlTable("loveStories", {
 export type LoveStory = typeof loveStories.$inferSelect;
 export type InsertLoveStory = typeof loveStories.$inferInsert;
 
-/**
- * Anniversaries table - tracks family anniversaries
- */
 export const anniversaries = mysqlTable("anniversaries", {
   id: int("id").autoincrement().primaryKey(),
   familyId: int("familyId").notNull(),
@@ -166,9 +137,6 @@ export const anniversaries = mysqlTable("anniversaries", {
 export type Anniversary = typeof anniversaries.$inferSelect;
 export type InsertAnniversary = typeof anniversaries.$inferInsert;
 
-/**
- * Video Templates table - tracks video templates for creation
- */
 export const videoTemplates = mysqlTable("videoTemplates", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
@@ -183,9 +151,6 @@ export const videoTemplates = mysqlTable("videoTemplates", {
 export type VideoTemplate = typeof videoTemplates.$inferSelect;
 export type InsertVideoTemplate = typeof videoTemplates.$inferInsert;
 
-/**
- * Invitations table - tracks family invitations
- */
 export const invitations = mysqlTable("invitations", {
   id: int("id").autoincrement().primaryKey(),
   familyId: int("familyId").notNull(),
@@ -199,3 +164,37 @@ export const invitations = mysqlTable("invitations", {
 
 export type Invitation = typeof invitations.$inferSelect;
 export type InsertInvitation = typeof invitations.$inferInsert;
+
+/** Share records are owned by a user and may target a media item or album. */
+export const shares = mysqlTable("shares", {
+  id: varchar("id", { length: 128 }).primaryKey(),
+  userId: int("userId").notNull(),
+  mediaId: int("mediaId"),
+  albumId: int("albumId"),
+  platform: mysqlEnum("platform", ["wechat", "facebook", "instagram", "whatsapp", "link"]).notNull(),
+  caption: text("caption"),
+  shareUrl: text("shareUrl").notNull(),
+  clicks: int("clicks").default(0).notNull(),
+  shares: int("shares").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  expiresAt: timestamp("expiresAt"),
+});
+
+export type Share = typeof shares.$inferSelect;
+export type InsertShare = typeof shares.$inferInsert;
+
+/** OAuth credentials are kept separate from the users table. */
+export const oauthAccounts = mysqlTable("oauthAccounts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  provider: mysqlEnum("provider", ["google", "facebook"]).notNull(),
+  providerAccountId: varchar("providerAccountId", { length: 255 }).notNull(),
+  accessToken: text("accessToken").notNull(),
+  idToken: text("idToken"),
+  expiresAt: timestamp("expiresAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type OAuthAccount = typeof oauthAccounts.$inferSelect;
+export type InsertOAuthAccount = typeof oauthAccounts.$inferInsert;
