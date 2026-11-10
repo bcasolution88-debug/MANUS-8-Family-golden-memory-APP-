@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>项目概览</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #F2F7F4 0%, #E8F3ED 100%);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header {
+            padding-top: 60px; /* keep this */
+            padding-left: 80px;
+            padding-right: 80px;
+        }
+
+        .title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1B4332;
+            margin-bottom: 10px;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            font-weight: 500;
+            color: #40916C;
+            margin-bottom: 40px;
+        }
+
+        /* Reduced bottom padding by 20px (from 60 -> 40) to bring total height under 720px */
+        .content {
+            display: flex;
+            flex: 1;
+            padding: 0 80px 40px 80px; /* was 60px bottom */
+            gap: 40px; /* slightly reduced horizontal gap */
+        }
+
+        .left-column {
+            flex: 1;
+        }
+
+        .right-column {
+            flex: 1;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px; /* reduced to save vertical space */
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px; /* reduced */
+            border-radius: 8px;
+            border-left: 4px solid #FF9F1C;
+        }
+
+        .metric-number {
+            font-size: 36px;
+            font-weight: 800;
+            color: #FF9F1C;
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #40916C;
+            letter-spacing: 0.5px;
+        }
+
+        .tech-stack {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 24px; /* reduced */
+            border-radius: 8px;
+        }
+
+        .tech-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1B4332;
+            margin-bottom: 16px; /* reduced */
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tech-title i {
+            color: #FF9F1C;
+        }
+
+        .tech-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px; /* reduced */
+        }
+
+        .tech-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: #40916C;
+            font-weight: 500;
+        }
+
+        .tech-item i {
+            color: #FF9F1C;
+            width: 20px;
+            text-align: center;
+        }
+
+        .highlight {
+            color: #FF9F1C;
+            font-weight: 700;
+        }
+
+        .curve-line {
+            position: absolute;
+            width: 2px;
+            height: 60%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(180deg, transparent 0%, #FF9F1C 20%, #FF9F1C 80%, transparent 100%);
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="curve-line"></div>
+
+        <div class="header">
+            <div class="title">项目概览</div>
+            <div class="subtitle">完整的功能实现和技术成果</div>
+        </div>
+
+        <div class="content">
+            <div class="left-column">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-number">16</div>
+                        <div class="metric-label">前端页面</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-number">44</div>
+                        <div class="metric-label">API接口</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-number">6</div>
+                        <div class="metric-label">云函数</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-number">11</div>
+                        <div class="metric-label">数据库表</div>
+                    </div>
+                </div>
+
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-number">20K+</div>
+                        <div class="metric-label">代码行数</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-number">50+</div>
+                        <div class="metric-label">测试用例</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-column">
+                <div class="tech-stack">
+                    <div class="tech-title">
+                        <i class="fas fa-cogs"></i>
+                        前端技术栈
+                    </div>
+                    <div class="tech-list">
+                        <div class="tech-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Vue 3 + Vite</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span>JavaScript + TypeScript</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Tailwind CSS</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span>响应式设计</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tech-stack" style="margin-top: 20px;">
+                    <div class="tech-title">
+                        <i class="fas fa-server"></i>
+                        后端技术栈
+                    </div>
+                    <div class="tech-list">
+                        <div class="tech-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Node.js + Express</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span>PostgreSQL + Redis</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Docker + Nginx</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-check-circle"></i>
+                            <span>uniCloud集成</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关键指标</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #F2F7F4 0%, #E8F3ED 100%);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .header {
+            padding-top: 50px;
+            padding-left: 80px;
+            padding-right: 80px;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1B4332;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #40916C;
+            margin-bottom: 25px;
+        }
+        .content {
+            flex: 1;
+            padding: 0 80px 30px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+        .kpi-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #FF9F1C;
+        }
+        .kpi-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1B4332;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .kpi-title i {
+            color: #FF9F1C;
+        }
+        .kpi-items {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .kpi-item {
+            font-size: 12px;
+            color: #40916C;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .kpi-value {
+            font-weight: 700;
+            color: #FF9F1C;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <div class="title">关键指标</div>
+            <div class="subtitle">成功指标和业务目标</div>
+        </div>
+        <div class="content">
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-title">
+                        <i class="fas fa-users"></i>
+                        用户指标
+                    </div>
+                    <div class="kpi-items">
+                        <div class="kpi-item">
+                            <span>用户满意度</span>
+                            <span class="kpi-value">90%+</span>
+                        </div>
+                        <div class="kpi-item">
+                            <span>日活跃用户</span>
+                            <span class="kpi-value">1000+</span>
+                        </div>
+                        <div class="kpi-item">
+                            <span>用户留存率</span>
+                            <span class="kpi-value">70%+</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-title">
+                        <i class="fas fa-chart-line"></i>
+                        技术指标
+                    </div>
+                    <div class="kpi-items">
+                        <div class="kpi-item">
+                            <span>系统可用性</span>
+                            <span class="kpi-value">99.9%+</span>
+                        </div>
+                        <div class="kpi-item">
+                            <span>平均响应时间</span>
+                            <span class="kpi-value">&lt;200ms</span>
+                        </div>
+                        <div class="kpi-item">
+                            <span>错误率</span>
+                            <span class="kpi-value">&lt;0.1%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-title">
+                        <i class="fas fa-dollar-sign"></i>
+                        业务指标
+                    </div>
+                    <div class="kpi-items">
+                        <div class="kpi-item">
+                            <span>转化率</span>
+                            <span class="kpi-value">5%+</span>
+                        </div>
+                        <div class="kpi-item">
+                            <span>用户增长</span>
+                            <span class="kpi-value">20%/月</span>
+                        </div>
+                        <div class="kpi-item">
+                            <span>收入增长</span>
+                            <span class="kpi-value">30%/月</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

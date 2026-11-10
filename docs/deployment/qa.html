@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Q&A</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #F2F7F4 0%, #E8F3ED 100%);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .header {
+            padding-top: 50px;
+            padding-left: 80px;
+            padding-right: 80px;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1B4332;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #40916C;
+            margin-bottom: 25px;
+        }
+        .content {
+            flex: 1;
+            padding: 0 80px 30px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 12px;
+        }
+        .qa-item {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 14px;
+            border-radius: 8px;
+            border-left: 4px solid #FF9F1C;
+        }
+        .question {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1B4332;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .question i {
+            color: #FF9F1C;
+        }
+        .answer {
+            font-size: 12px;
+            color: #40916C;
+            margin-left: 24px;
+            line-height: 1.4;
+        }
+        .contact-box {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #22C55E;
+            margin-top: 10px;
+        }
+        .contact-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1B4332;
+            margin-bottom: 10px;
+        }
+        .contact-items {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+        }
+        .contact-item {
+            font-size: 12px;
+            color: #40916C;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .contact-item i {
+            color: #22C55E;
+            font-size: 14px;
+            width: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <div class="title">Q&A</div>
+            <div class="subtitle">常见问题解答</div>
+        </div>
+        <div class="content">
+            <div class="qa-item">
+                <div class="question">
+                    <i class="fas fa-question-circle"></i>
+                    部署需要多长时间？
+                </div>
+                <div class="answer">
+                    使用Docker Compose约5-10分钟即可完成部署
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="question">
+                    <i class="fas fa-question-circle"></i>
+                    如何处理故障？
+                </div>
+                <div class="answer">
+                    自动重启 + 监控告警 + 快速回滚机制确保系统稳定性
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="question">
+                    <i class="fas fa-question-circle"></i>
+                    如何扩展应用？
+                </div>
+                <div class="answer">
+                    水平扩展（多实例）+ 垂直扩展（增加资源）满足不同规模需求
+                </div>
+            </div>
+
+            <div class="qa-item">
+                <div class="question">
+                    <i class="fas fa-question-circle"></i>
+                    成本如何？
+                </div>
+                <div class="answer">
+                    基础配置约$50/月，可根据实际需求灵活扩展
+                </div>
+            </div>
+
+            <div class="contact-box">
+                <div class="contact-title">联系方式</div>
+                <div class="contact-items">
+                    <div class="contact-item">
+                        <i class="fas fa-envelope"></i>
+                        <span>support@golden-memory.com</span>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-comments"></i>
+                        <span>#golden-memory</span>
+                    </div>
+                    <div class="contact-item">
+                        <i class="fas fa-phone"></i>
+                        <span>+86-xxx-xxxx-xxxx</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

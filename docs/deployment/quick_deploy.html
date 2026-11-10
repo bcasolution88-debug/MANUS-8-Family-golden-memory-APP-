@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快速部署指南</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #F2F7F4 0%, #E8F3ED 100%);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .header {
+            padding-top: 50px;
+            padding-left: 80px;
+            padding-right: 80px;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1B4332;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #40916C;
+            margin-bottom: 25px;
+        }
+        .content {
+            flex: 1;
+            padding: 0 80px 30px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .steps-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .step-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #FF9F1C;
+        }
+        .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #FF9F1C 0%, #FFB84D 100%);
+            color: white;
+            border-radius: 50%;
+            font-weight: 700;
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+        .step-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1B4332;
+            margin-bottom: 12px;
+        }
+        .step-commands {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .command {
+            background: rgba(27, 67, 50, 0.05);
+            padding: 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            color: #40916C;
+            line-height: 1.4;
+            word-break: break-all;
+        }
+        .completion-box {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #22C55E;
+            text-align: center;
+        }
+        .completion-icon {
+            font-size: 32px;
+            color: #22C55E;
+            margin-bottom: 10px;
+        }
+        .completion-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1B4332;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <div class="title">快速部署指南</div>
+            <div class="subtitle">3分钟快速部署</div>
+        </div>
+        <div class="content">
+            <div class="steps-container">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <div class="step-title">准备环境</div>
+                    <div class="step-commands">
+                        <div class="command">git clone &lt;repo&gt;</div>
+                        <div class="command">cd golden-memory-uniapp</div>
+                        <div class="command">cp .env.example .env.production</div>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <div class="step-title">启动服务</div>
+                    <div class="step-commands">
+                        <div class="command">docker-compose up -d</div>
+                        <div class="command">等待容器启动...</div>
+                        <div class="command">（约1-2分钟）</div>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <div class="step-title">验证部署</div>
+                    <div class="step-commands">
+                        <div class="command">curl http://localhost:3000/health</div>
+                        <div class="command">检查响应状态</div>
+                        <div class="command">部署完成！</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="completion-box">
+                <div class="completion-icon">🎉</div>
+                <div class="completion-text">部署完成！应用已就绪</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

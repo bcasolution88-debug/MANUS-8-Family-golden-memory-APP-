@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>性能指标</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #F2F7F4 0%, #E8F3ED 100%);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .header {
+            padding-top: 50px;
+            padding-left: 80px;
+            padding-right: 80px;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1B4332;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #40916C;
+            margin-bottom: 20px;
+        }
+        .content {
+            flex: 1;
+            padding: 0 80px 30px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 15px;
+        }
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 12px;
+        }
+        .metrics-table th {
+            background: linear-gradient(90deg, #1B4332 0%, #40916C 100%);
+            color: white;
+            padding: 10px;
+            text-align: left;
+            font-weight: 700;
+        }
+        .metrics-table td {
+            padding: 10px;
+            border-bottom: 1px solid #E5E7EB;
+            color: #40916C;
+        }
+        .metrics-table tr:last-child td {
+            border-bottom: none;
+        }
+        .metrics-table tr:nth-child(even) {
+            background: rgba(64, 145, 108, 0.03);
+        }
+        .metric-name {
+            font-weight: 700;
+            color: #1B4332;
+        }
+        .improvement {
+            color: #22C55E;
+            font-weight: 700;
+        }
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 12px;
+        }
+        .metric-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 12px;
+            border-radius: 8px;
+            border-left: 4px solid #FF9F1C;
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #FF9F1C;
+            margin-bottom: 4px;
+        }
+        .metric-label {
+            font-size: 11px;
+            color: #40916C;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <div class="title">性能指标</div>
+            <div class="subtitle">优化成果和部署后指标</div>
+        </div>
+        <div class="content">
+            <table class="metrics-table">
+                <thead>
+                    <tr>
+                        <th>指标</th>
+                        <th>优化前</th>
+                        <th>优化后</th>
+                        <th>提升</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="metric-name">首屏加载</td>
+                        <td>2.5s</td>
+                        <td>1.2s</td>
+                        <td class="improvement">↓52%</td>
+                    </tr>
+                    <tr>
+                        <td class="metric-name">API响应</td>
+                        <td>500ms</td>
+                        <td>150ms</td>
+                        <td class="improvement">↓70%</td>
+                    </tr>
+                    <tr>
+                        <td class="metric-name">交互响应</td>
+                        <td>500ms</td>
+                        <td>100ms</td>
+                        <td class="improvement">↓80%</td>
+                    </tr>
+                    <tr>
+                        <td class="metric-name">系统可靠性</td>
+                        <td>95%</td>
+                        <td>99.5%</td>
+                        <td class="improvement">↑4.5%</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value">99.9%</div>
+                    <div class="metric-label">可用性</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">&lt;200ms</div>
+                    <div class="metric-label">响应时间</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">&lt;0.1%</div>
+                    <div class="metric-label">错误率</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">30-50%</div>
+                    <div class="metric-label">CPU占用</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

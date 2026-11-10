@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>结束页</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #1B4332 0%, #40916C 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .content {
+            text-align: center;
+            z-index: 2;
+        }
+        .icon {
+            font-size: 64px;
+            color: #FF9F1C;
+            margin-bottom: 30px;
+        }
+        .main-title {
+            font-size: 56px;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 20px;
+            letter-spacing: -0.5px;
+        }
+        .subtitle {
+            font-size: 28px;
+            font-weight: 600;
+            color: #FFD699;
+            margin-bottom: 40px;
+        }
+        .project-info {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .info-item {
+            font-size: 14px;
+            color: #FFD699;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .info-item i {
+            color: #FF9F1C;
+            font-size: 16px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #FF9F1C 0%, #FFB84D 100%);
+            color: #1B4332;
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            text-decoration: none;
+            margin-bottom: 20px;
+        }
+        .decoration {
+            position: absolute;
+            opacity: 0.1;
+            z-index: 1;
+        }
+        .decoration-top {
+            top: -50px;
+            right: -50px;
+            font-size: 200px;
+        }
+        .decoration-bottom {
+            bottom: -50px;
+            left: -50px;
+            font-size: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="decoration decoration-top">
+            <i class="fas fa-rocket"></i>
+        </div>
+        <div class="decoration decoration-bottom">
+            <i class="fas fa-star"></i>
+        </div>
+
+        <div class="content">
+            <div class="icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+
+            <div class="main-title">谢谢观看！</div>
+            <div class="subtitle">金色韶华 (Golden Memory)<br>Vue 3项目生产部署方案</div>
+
+            <div class="project-info">
+                <div class="info-item">
+                    <i class="fas fa-box"></i>
+                    <span><strong>版本：</strong> 1.0.0</span>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-calendar"></i>
+                    <span><strong>发布日期：</strong> 2026年7月21日</span>
+                </div>
+                <div class="info-item">
+                    <i class="fas fa-users"></i>
+                    <span><strong>技术团队：</strong> Manus AI Team</span>
+                </div>
+            </div>
+
+            <div class="cta-button">🚀 立即开始部署</div>
+
+            <div style="color: #FFD699; font-size: 14px;">
+                准备好部署了吗？让我们一起将应用推向生产环境！
+            </div>
+        </div>
+    </div>
+</body>
+</html>

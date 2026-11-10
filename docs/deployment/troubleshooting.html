@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>故障排除</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #F2F7F4 0%, #E8F3ED 100%);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .header {
+            padding-top: 50px;
+            padding-left: 80px;
+            padding-right: 80px;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1B4332;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #40916C;
+            margin-bottom: 25px;
+        }
+        .content {
+            flex: 1;
+            padding: 0 80px 30px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 15px;
+        }
+        .problem-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #FF9F1C;
+        }
+        .problem-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1B4332;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .problem-title i {
+            color: #EF4444;
+        }
+        .solutions {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .solution {
+            font-size: 12px;
+            color: #40916C;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .solution i {
+            color: #22C55E;
+            font-size: 10px;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+        .solution-text {
+            flex: 1;
+        }
+        .command {
+            background: rgba(27, 67, 50, 0.05);
+            padding: 4px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+            color: #40916C;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <div class="title">故障排除</div>
+            <div class="subtitle">常见问题和解决方案</div>
+        </div>
+        <div class="content">
+            <div class="problem-card">
+                <div class="problem-title">
+                    <i class="fas fa-exclamation-circle"></i>
+                    问题1：应用无法启动
+                </div>
+                <div class="solutions">
+                    <div class="solution">
+                        <i class="fas fa-check"></i>
+                        <div class="solution-text">检查日志：<span class="command">pm2 logs golden-memory</span></div>
+                    </div>
+                    <div class="solution">
+                        <i class="fas fa-check"></i>
+                        <div class="solution-text">检查端口：<span class="command">lsof -i :3000</span></div>
+                    </div>
+                    <div class="solution">
+                        <i class="fas fa-check"></i>
+                        <div class="solution-text">重新安装：<span class="command">npm install</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="problem-card">
+                <div class="problem-title">
+                    <i class="fas fa-exclamation-circle"></i>
+                    问题2：数据库连接失败
+                </div>
+                <div class="solutions">
+                    <div class="solution">
+                        <i class="fas fa-check"></i>
+                        <div class="solution-text">检查服务：<span class="command">systemctl status postgresql</span></div>
+                    </div>
+                    <div class="solution">
+                        <i class="fas fa-check"></i>
+                        <div class="solution-text">测试连接：<span class="command">psql -U golden_memory</span></div>
+                    </div>
+                    <div class="solution">
+                        <i class="fas fa-check"></i>
+                        <div class="solution-text">查看日志：<span class="command">/var/log/postgresql/postgresql.log</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="problem-card">
+                <div class="problem-title">
+                    <i class="fas fa-exclamation-circle"></i>
+                    问题3：Nginx返回502
+                </div>
+                <div class="solutions">
+                    <div class="solution">
+                        <i class="fas fa-check"></i>
+                        <div class="solution-text">检查上游：<span class="command">curl http://localhost:3000</span></div>
+                    </div>
+                    <div class="solution">
+                        <i class="fas fa-check"></i>
+                        <div class="solution-text">验证配置：<span class="command">nginx -t</span></div>
+                    </div>
+                    <div class="solution">
+                        <i class="fas fa-check"></i>
+                        <div class="solution-text">查看日志：<span class="command">/var/log/nginx/error.log</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

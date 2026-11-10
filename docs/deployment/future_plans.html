@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后续计划</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #F2F7F4 0%, #E8F3ED 100%);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .header {
+            padding-top: 50px;
+            padding-left: 80px;
+            padding-right: 80px;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1B4332;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #40916C;
+            margin-bottom: 25px;
+        }
+        .content {
+            flex: 1;
+            padding: 0 80px 30px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .timeline-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+        .timeline-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #FF9F1C;
+        }
+        .timeline-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1B4332;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .timeline-title i {
+            color: #FF9F1C;
+        }
+        .timeline-items {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .timeline-item {
+            font-size: 12px;
+            color: #40916C;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .timeline-item i {
+            color: #22C55E;
+            font-size: 10px;
+            width: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <div class="title">后续计划</div>
+            <div class="subtitle">短期、中期和长期发展规划</div>
+        </div>
+        <div class="content">
+            <div class="timeline-grid">
+                <div class="timeline-card">
+                    <div class="timeline-title">
+                        <i class="fas fa-calendar-alt"></i>
+                        短期计划（1-3个月）
+                    </div>
+                    <div class="timeline-items">
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>部署到生产环境</span>
+                        </div>
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>用户测试和反馈</span>
+                        </div>
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>性能监控和优化</span>
+                        </div>
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>安全审计和加固</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timeline-card">
+                    <div class="timeline-title">
+                        <i class="fas fa-calendar-alt"></i>
+                        中期计划（3-6个月）
+                    </div>
+                    <div class="timeline-items">
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>新功能开发</span>
+                        </div>
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>用户体验优化</span>
+                        </div>
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>性能持续优化</span>
+                        </div>
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>扩展性改进</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="timeline-card">
+                    <div class="timeline-title">
+                        <i class="fas fa-calendar-alt"></i>
+                        长期计划（6个月+）
+                    </div>
+                    <div class="timeline-items">
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>国际化支持</span>
+                        </div>
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>移动应用版本</span>
+                        </div>
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>AI功能集成</span>
+                        </div>
+                        <div class="timeline-item">
+                            <i class="fas fa-check"></i>
+                            <span>微服务架构</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>监控和维护</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #F2F7F4 0%, #E8F3ED 100%);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .header {
+            padding-top: 50px;
+            padding-left: 80px;
+            padding-right: 80px;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1B4332;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #40916C;
+            margin-bottom: 25px;
+        }
+        .content {
+            flex: 1;
+            padding: 0 80px 30px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .feature-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #FF9F1C;
+        }
+        .feature-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: rgba(255, 159, 28, 0.1);
+            border-radius: 6px;
+            font-size: 18px;
+            color: #FF9F1C;
+            margin-bottom: 12px;
+        }
+        .feature-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1B4332;
+            margin-bottom: 12px;
+        }
+        .feature-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .feature-item {
+            font-size: 12px;
+            color: #40916C;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .feature-item i {
+            color: #22C55E;
+            font-size: 10px;
+            width: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <div class="title">监控和维护</div>
+            <div class="subtitle">完整的监控体系和维护计划</div>
+        </div>
+        <div class="content">
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-eye"></i></div>
+                    <div class="feature-title">监控工具</div>
+                    <div class="feature-list">
+                        <div class="feature-item"><i class="fas fa-check"></i> PM2 Plus</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> ELK Stack</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> Prometheus</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> Grafana仪表板</div>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-tools"></i></div>
+                    <div class="feature-title">维护任务</div>
+                    <div class="feature-list">
+                        <div class="feature-item"><i class="fas fa-check"></i> 定期备份</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> 依赖更新</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> 安全补丁</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> 性能优化</div>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="feature-title">性能监控</div>
+                    <div class="feature-list">
+                        <div class="feature-item"><i class="fas fa-check"></i> 实时指标</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> 告警通知</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> 日志分析</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> 趋势预测</div>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon"><i class="fas fa-bell"></i></div>
+                    <div class="feature-title">告警机制</div>
+                    <div class="feature-list">
+                        <div class="feature-item"><i class="fas fa-check"></i> CPU告警</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> 内存告警</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> 错误告警</div>
+                        <div class="feature-item"><i class="fas fa-check"></i> 可用性告警</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成本分析</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #F2F7F4 0%, #E8F3ED 100%);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .header {
+            padding-top: 50px;
+            padding-left: 80px;
+            padding-right: 80px;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1B4332;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #40916C;
+            margin-bottom: 20px;
+        }
+        .content {
+            flex: 1;
+            padding: 0 80px 30px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 15px;
+        }
+        .cost-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+        .cost-table th {
+            background: linear-gradient(90deg, #1B4332 0%, #40916C 100%);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 700;
+        }
+        .cost-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #E5E7EB;
+            color: #40916C;
+        }
+        .cost-table tr:last-child td {
+            border-bottom: none;
+        }
+        .cost-table tr:nth-child(even) {
+            background: rgba(64, 145, 108, 0.03);
+        }
+        .item-name {
+            font-weight: 700;
+            color: #1B4332;
+        }
+        .total-row {
+            background: rgba(255, 159, 28, 0.1);
+            font-weight: 700;
+        }
+        .total-row td {
+            border-top: 2px solid #FF9F1C;
+            border-bottom: 2px solid #FF9F1C;
+        }
+        .optimization-box {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #FF9F1C;
+        }
+        .optimization-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1B4332;
+            margin-bottom: 10px;
+        }
+        .optimization-items {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .optimization-item {
+            font-size: 12px;
+            color: #40916C;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .optimization-item i {
+            color: #22C55E;
+            font-size: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <div class="title">成本分析</div>
+            <div class="subtitle">基础设施成本和优化方案</div>
+        </div>
+        <div class="content">
+            <table class="cost-table">
+                <thead>
+                    <tr>
+                        <th>项目</th>
+                        <th>配置</th>
+                        <th>月成本</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="item-name">服务器</td>
+                        <td>4GB RAM, 20GB SSD</td>
+                        <td>$20</td>
+                    </tr>
+                    <tr>
+                        <td class="item-name">数据库</td>
+                        <td>PostgreSQL 托管</td>
+                        <td>$15</td>
+                    </tr>
+                    <tr>
+                        <td class="item-name">缓存</td>
+                        <td>Redis 托管</td>
+                        <td>$5</td>
+                    </tr>
+                    <tr>
+                        <td class="item-name">CDN</td>
+                        <td>流量加速</td>
+                        <td>$10</td>
+                    </tr>
+                    <tr class="total-row">
+                        <td colspan="2" class="item-name">总计</td>
+                        <td class="item-name">$50</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="optimization-box">
+                <div class="optimization-title">成本优化策略</div>
+                <div class="optimization-items">
+                    <div class="optimization-item">
+                        <i class="fas fa-check"></i>
+                        <span>使用容器优化资源</span>
+                    </div>
+                    <div class="optimization-item">
+                        <i class="fas fa-check"></i>
+                        <span>自动扩展</span>
+                    </div>
+                    <div class="optimization-item">
+                        <i class="fas fa-check"></i>
+                        <span>按需付费</span>
+                    </div>
+                    <div class="optimization-item">
+                        <i class="fas fa-check"></i>
+                        <span>预留实例</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

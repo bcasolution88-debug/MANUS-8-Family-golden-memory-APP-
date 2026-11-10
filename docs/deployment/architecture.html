@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>部署架构概览</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #F2F7F4 0%, #E8F3ED 100%);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .header {
+            padding-top: 50px;
+            padding-left: 80px;
+            padding-right: 80px;
+        }
+
+        .title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1B4332;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: #40916C;
+            margin-bottom: 18px;
+        }
+
+        .content {
+            flex: 1;
+            padding: 0 80px 12px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .architecture {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .layer {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .layer-icon {
+            width: 52px;
+            height: 52px;
+            background: rgba(255, 159, 28, 0.1);
+            border: 2px solid #FF9F1C;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            color: #FF9F1C;
+            flex-shrink: 0;
+        }
+
+        .layer-content {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 8px;
+            border-radius: 8px;
+            border-left: 4px solid #FF9F1C;
+        }
+
+        .layer-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1B4332;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .layer-items {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .layer-item {
+            font-size: 13px;
+            color: #40916C;
+            background: rgba(64, 145, 108, 0.05);
+            padding: 6px 10px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <div class="title">部署架构概览</div>
+            <div class="subtitle">完整的系统架构设计</div>
+        </div>
+
+        <div class="content">
+            <div class="architecture">
+                <div class="layer">
+                    <div class="layer-icon">
+                        <i class="fas fa-globe"></i>
+                    </div>
+                    <div class="layer-content">
+                        <div class="layer-title">
+                            <span>客户端层</span>
+                        </div>
+                        <div class="layer-items">
+                            <div class="layer-item">Web浏览器</div>
+                            <div class="layer-item">移动应用</div>
+                            <div class="layer-item">HTTPS连接</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="layer">
+                    <div class="layer-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <div class="layer-content">
+                        <div class="layer-title">
+                            <span>网关层 (Nginx)</span>
+                        </div>
+                        <div class="layer-items">
+                            <div class="layer-item">反向代理</div>
+                            <div class="layer-item">SSL/TLS加密</div>
+                            <div class="layer-item">负载均衡</div>
+                            <div class="layer-item">Gzip压缩</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="layer">
+                    <div class="layer-icon">
+                        <i class="fas fa-cube"></i>
+                    </div>
+                    <div class="layer-content">
+                        <div class="layer-title">
+                            <span>应用层 (Node.js + Docker)</span>
+                        </div>
+                        <div class="layer-items">
+                            <div class="layer-item">Express服务器</div>
+                            <div class="layer-item">业务逻辑</div>
+                            <div class="layer-item">API接口</div>
+                            <div class="layer-item">WebSocket</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="layer">
+                    <div class="layer-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                    <div class="layer-content">
+                        <div class="layer-title">
+                            <span>数据层</span>
+                        </div>
+                        <div class="layer-items">
+                            <div class="layer-item">PostgreSQL</div>
+                            <div class="layer-item">Redis缓存</div>
+                            <div class="layer-item">数据备份</div>
+                            <div class="layer-item">日志存储</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

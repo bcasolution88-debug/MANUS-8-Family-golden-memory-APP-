@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>扩展性规划</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background: linear-gradient(135deg, #F2F7F4 0%, #E8F3ED 100%);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .header {
+            padding-top: 50px;
+            padding-left: 80px;
+            padding-right: 80px;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1B4332;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #40916C;
+            margin-bottom: 25px;
+        }
+        .content {
+            flex: 1;
+            padding: 0 80px 30px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .scaling-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .scaling-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #FF9F1C;
+        }
+        .scaling-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1B4332;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .scaling-title i {
+            color: #FF9F1C;
+        }
+        .scaling-items {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .scaling-item {
+            font-size: 12px;
+            color: #40916C;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .scaling-item i {
+            color: #22C55E;
+            font-size: 10px;
+            width: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <div class="title">扩展性规划</div>
+            <div class="subtitle">水平和垂直扩展策略</div>
+        </div>
+        <div class="content">
+            <div class="scaling-grid">
+                <div class="scaling-card">
+                    <div class="scaling-title">
+                        <i class="fas fa-arrows-alt-h"></i>
+                        水平扩展
+                    </div>
+                    <div class="scaling-items">
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span><strong>负载均衡</strong></span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>多个应用实例</span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>自动故障转移</span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>会话共享</span>
+                        </div>
+
+                        <div class="scaling-item" style="margin-top: 10px;">
+                            <i class="fas fa-check"></i>
+                            <span><strong>数据库扩展</strong></span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>读写分离</span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>数据库复制</span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>分片策略</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="scaling-card">
+                    <div class="scaling-title">
+                        <i class="fas fa-arrows-alt-v"></i>
+                        垂直扩展
+                    </div>
+                    <div class="scaling-items">
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span><strong>服务器资源</strong></span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>增加CPU核心</span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>增加内存</span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>升级存储</span>
+                        </div>
+
+                        <div class="scaling-item" style="margin-top: 10px;">
+                            <i class="fas fa-check"></i>
+                            <span><strong>性能优化</strong></span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>数据库查询优化</span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>缓存优化</span>
+                        </div>
+                        <div class="scaling-item">
+                            <i class="fas fa-check"></i>
+                            <span>代码性能优化</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
