@@ -205,7 +205,7 @@ describeIntegration("API and database integration", () => {
     await caller.family.createAnniversary({
       familyId,
       type: "golden",
-      date: new Date("2040-01-01T00:00:00.000Z"),
+      date: new Date("2030-01-01T00:00:00.000Z"),
       couple: "CI Couple",
     });
     await expect(caller.family.getAnniversaries({ familyId })).resolves.toEqual(
