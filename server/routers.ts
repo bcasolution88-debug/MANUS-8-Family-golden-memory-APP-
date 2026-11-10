@@ -7,6 +7,7 @@ import { albumRouter } from "./albumRouter";
 import { mediaRouter } from "./mediaRouter";
 import { albumDetailRouter } from "./albumDetailRouter";
 import { interactionRouter } from "./interactionRouter";
+import { oauthRouter } from "./oauthRouter";
 
 export const appRouter = router({
   // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
@@ -26,6 +27,7 @@ export const appRouter = router({
   media: mediaRouter,
   albumDetail: albumDetailRouter,
   interaction: interactionRouter,
+  oauth: oauthRouter,
 });
 
 export type AppRouter = typeof appRouter;
