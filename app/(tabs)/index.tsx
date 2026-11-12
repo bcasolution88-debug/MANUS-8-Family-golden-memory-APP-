@@ -1,10 +1,19 @@
-import { ScrollView, Text, View, Pressable, Image, FlatList } from "react-native";
-import { useState, useEffect } from "react";
+import { ScrollView, Text, View, Pressable, ActivityIndicator, RefreshControl } from "react-native";
+import { UserAvatar } from "@/components/user-avatar";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "expo-router";
 import { useLanguage } from "@/lib/language-provider";
 import { useColors } from "@/hooks/use-colors";
+import { useFamilyId } from "@/hooks/use-family-id";
+import { useUnreadCount } from "@/hooks/use-unread-count";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ScreenContainer } from "@/components/screen-container";
+import { GradientCard } from "@/components/gradient-card";
+import { SignedImage } from "@/components/signed-image";
+import { FamilySwitcher } from "@/components/family-switcher";
+import { AIInsightsCard } from "@/components/ai-insights-card";
+import { trpc } from "@/lib/trpc";
+import { consumePendingInviteCode } from "@/lib/invite-link";
 
 // Mock data - 将来从API获取
 const MOCK_FAMILY = {
@@ -22,152 +31,186 @@ const MOCK_FAMILY = {
   ],
 };
 
-const MOCK_ANNIVERSARY = {
-  type: "金婚",
-  typeCn: "金婚纪念日",
-  typeEn: "Golden Anniversary",
-  years: 50,
-  daysUntil: 0,
-  date: "2026-07-15",
+const WEEKDAYS_ZH = ["日", "一", "二", "三", "四", "五", "六"];
+const WEEKDAYS_EN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const ANNIVERSARY_LABEL: Record<string, [string, string]> = {
+  silver: ["银婚", "Silver"],
+  golden: ["金婚", "Golden"],
+  diamond: ["钻石婚", "Diamond"],
+  platinum: ["白金婚", "Platinum"],
 };
 
-const MOCK_TIMELINE = [
-  {
-    id: 1,
-    date: "06/18",
-    dayOfWeek: "Wed",
-    title: "家庭年度聚会",
-    titleEn: "Annual Family Reunion",
-    description: "今年的家庭聚会，爸妈笑得格外开心。",
-    descriptionEn: "This year's family gathering, parents were especially happy.",
-    image: "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=400&q=80",
-    author: "小雅",
-    likes: 42,
-    comments: 8,
-    mediaCount: 12,
-  },
-  {
-    id: 2,
-    date: "05/12",
-    dayOfWeek: "Sun",
-    title: "金婚纪念日派对",
-    titleEn: "Golden Anniversary Celebration",
-    description: "50年相守，感谢有你。",
-    descriptionEn: "50 years together, thank you for being there.",
-    image: "https://images.unsplash.com/photo-1511895426328-dc8714191011?w=400&q=80",
-    author: "小明",
-    likes: 88,
-    comments: 24,
-    mediaCount: 12,
-  },
-];
+type RecentItem = {
+  id: number;
+  type: "photo" | "video";
+  title: string | null;
+  description: string | null;
+  uploadedBy: number;
+  likeCount: number;
+  commentCount: number;
+  createdAt: Date;
+  albumName: string;
+};
 
+/**
+ * Home (P5 — real data). Family card ← family.getUserFamilies + getMembers;
+ * countdown ← family.getAnniversaries (nearest upcoming); featured memories ←
+ * media.recent (family-wide, newest first, SignedImage thumbnails); badge ←
+ * notification.unreadCount. Signed-out visitors see the static showcase.
+ */
 export default function HomeScreen() {
   const router = useRouter();
-  const { t, language } = useLanguage();
+  const { t, l, language } = useLanguage();
   const colors = useColors();
-  const [daysUntilAnniversary, setDaysUntilAnniversary] = useState(0);
+  const { familyId, family, isAuthenticated } = useFamilyId();
+  const unread = useUnreadCount();
 
+  // P7: a `/join?code=` link opened while signed out parks its code; replay it now.
   useEffect(() => {
-    // 计算纪念日倒计时
-    const today = new Date();
-    const anniversary = new Date(MOCK_ANNIVERSARY.date);
-    const diff = anniversary.getTime() - today.getTime();
-    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    setDaysUntilAnniversary(Math.max(0, days));
-  }, []);
+    if (!isAuthenticated) return;
+    void consumePendingInviteCode().then((code) => {
+      if (code) router.push({ pathname: "/join", params: { code } });
+    });
+  }, [isAuthenticated, router]);
 
-  const renderTimelineItem = ({ item }: any) => (
-    <Pressable
-      onPress={() => router.push(`/photo/${item.id}`)}
-      className="mb-4 bg-surface rounded-2xl overflow-hidden"
-    >
-      <View className="flex-row">
-        {/* 左侧日期 */}
-        <View className="w-16 bg-primary/10 items-center justify-center py-4">
-          <Text className="text-lg font-bold text-primary">{item.date}</Text>
-          <Text className="text-xs text-muted">{item.dayOfWeek}</Text>
-        </View>
+  const members = trpc.family.getMembers.useQuery({ familyId: familyId ?? 0 }, { enabled: !!familyId, staleTime: 60_000 });
+  const anniversaries = trpc.family.getAnniversaries.useQuery({ familyId: familyId ?? 0 }, { enabled: !!familyId, staleTime: 60_000 });
+  const recent = trpc.media.recent.useQuery({ familyId: familyId ?? 0, take: 6 }, { enabled: !!familyId });
 
-        {/* 右侧内容 */}
-        <View className="flex-1 p-3 gap-2">
-          {/* 标题和媒体计数 */}
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center gap-2 flex-1">
-              <MaterialIcons name="image" size={16} color={colors.muted} />
-              <Text className="text-sm text-muted">{item.mediaCount}</Text>
-              <Text className="text-sm font-semibold text-foreground flex-1">
-                {language === "zh" ? item.title : item.titleEn}
-              </Text>
-            </View>
-          </View>
-
-          {/* 描述 */}
-          <Text className="text-xs text-muted" numberOfLines={2}>
-            {language === "zh" ? item.description : item.descriptionEn}
-          </Text>
-
-          {/* 作者和交互 */}
-          <View className="flex-row items-center justify-between mt-2">
-            <View className="flex-row items-center gap-2">
-              <Image
-                source={{ uri: item.image }}
-                className="w-6 h-6 rounded-full"
-              />
-              <Text className="text-xs text-muted">{item.author}</Text>
-            </View>
-            <View className="flex-row items-center gap-3">
-              <View className="flex-row items-center gap-1">
-                <MaterialIcons name="favorite" size={14} color={colors.muted} />
-                <Text className="text-xs text-muted">{item.likes}</Text>
-              </View>
-              <View className="flex-row items-center gap-1">
-                <MaterialIcons name="comment" size={14} color={colors.muted} />
-                <Text className="text-xs text-muted">{item.comments}</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* 缩略图 */}
-        <Image
-          source={{ uri: item.image }}
-          className="w-16 h-24"
-        />
-      </View>
-    </Pressable>
+  const memberList = useMemo(
+    () =>
+      members.data?.map((m) => ({
+        id: m.userId,
+        name: m.user.name ?? t("notif.someone"),
+        avatar: m.user.avatar,
+        role: m.role === "owner" ? l("创建者", "Owner") : m.role === "admin" ? l("管理", "Admin") : m.role === "viewer" ? l("观看者", "Viewer") : "",
+      })) ?? [],
+    [members.data, l, t],
   );
+
+  /** Nearest upcoming anniversary (recurring yearly from its date). */
+  const nextAnniversary = useMemo(() => {
+    const list = anniversaries.data ?? [];
+    if (list.length === 0) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return list
+      .map((a) => {
+        const base = new Date(a.date);
+        const next = new Date(today.getFullYear(), base.getMonth(), base.getDate());
+        if (next < today) next.setFullYear(today.getFullYear() + 1);
+        const years = next.getFullYear() - base.getFullYear();
+        const days = Math.round((next.getTime() - today.getTime()) / 86_400_000);
+        return { ...a, next, years, days };
+      })
+      .sort((x, y) => x.days - y.days)[0];
+  }, [anniversaries.data]);
+
+  const nameOf = (userId: number) => memberList.find((m) => m.id === userId)?.name ?? t("notif.someone");
+  const fmtDate = (d: Date | string) => {
+    const dt = new Date(d);
+    return { md: `${String(dt.getMonth() + 1).padStart(2, "0")}/${String(dt.getDate()).padStart(2, "0")}`, wd: (language === "zh" ? WEEKDAYS_ZH : WEEKDAYS_EN)[dt.getDay()] };
+  };
+
+  const renderRecentItem = (item: RecentItem) => {
+    const { md, wd } = fmtDate(item.createdAt);
+    return (
+      <Pressable
+        key={item.id}
+        onPress={() => router.push((item.type === "video" ? `/video/${item.id}` : `/photo/${item.id}`) as any)}
+        accessibilityRole="button"
+        accessibilityLabel={item.title ?? item.albumName}
+        className="mb-4 bg-surface rounded-2xl overflow-hidden active:opacity-80"
+      >
+        <View className="flex-row">
+          <View className="w-16 bg-primary/10 items-center justify-center py-4">
+            <Text className="text-lg font-bold text-primary">{md}</Text>
+            <Text className="text-xs text-muted">{wd}</Text>
+          </View>
+          <View className="flex-1 p-3 gap-2">
+            <View className="flex-row items-center gap-2">
+              <MaterialIcons name={item.type === "video" ? "videocam" : "image"} size={16} color={colors.muted} />
+              <Text className="text-xs text-muted" numberOfLines={1}>{item.albumName}</Text>
+            </View>
+            <Text className="text-sm font-semibold text-foreground" numberOfLines={1}>{item.title ?? item.albumName}</Text>
+            {item.description ? <Text className="text-xs text-muted" numberOfLines={2}>{item.description}</Text> : null}
+            <View className="flex-row items-center justify-between mt-1">
+              <Text className="text-xs text-muted">{nameOf(item.uploadedBy)}</Text>
+              <View className="flex-row items-center gap-3">
+                <View className="flex-row items-center gap-1">
+                  <MaterialIcons name="favorite" size={14} color={colors.muted} />
+                  <Text className="text-xs text-muted">{item.likeCount}</Text>
+                </View>
+                <View className="flex-row items-center gap-1">
+                  <MaterialIcons name="comment" size={14} color={colors.muted} />
+                  <Text className="text-xs text-muted">{item.commentCount}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+          <View className="w-20 h-24">
+            <SignedImage mediaId={item.id} className="w-20 h-24" />
+            {item.type === "video" && (
+              <View className="absolute inset-0 items-center justify-center">
+                <MaterialIcons name="play-circle" size={24} color="white" />
+              </View>
+            )}
+          </View>
+        </View>
+      </Pressable>
+    );
+  };
+
+  const familyName = family?.name ?? MOCK_FAMILY.name;
+  const memberCount = isAuthenticated ? memberList.length : MOCK_FAMILY.memberCount;
+  const avatars = isAuthenticated ? memberList : MOCK_FAMILY.members.map((m) => ({ id: m.id, name: m.name, avatar: m.image, role: m.role }));
 
   return (
     <ScreenContainer className="bg-background p-0">
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={recent.isRefetching}
+            onRefresh={() => { void recent.refetch(); void anniversaries.refetch(); void members.refetch(); }}
+            tintColor={colors.primary}
+          />
+        }
       >
         <View className="flex-1">
           {/* 顶部导航栏 */}
           <View className="flex-row items-center justify-between px-6 py-4 bg-surface">
-            <View>
+            <View className="flex-1 gap-1">
               <Text className="text-lg font-bold text-foreground">
-                {language === "zh" ? "家庭共享相册" : "Family Shared Album"}
+                {t("ourFamilyAlbum")}
               </Text>
-              <Text className="text-xs text-muted uppercase">GOLDEN MEMORY</Text>
-            </View>
-            <Pressable className="relative">
-              <MaterialIcons name="notifications" size={24} color={colors.foreground} />
-              <View
-                className="absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center"
-                style={{ backgroundColor: colors.error }}
-              >
-                <Text className="text-xs font-bold text-white">3</Text>
+              <View className="flex-row">
+                <FamilySwitcher variant="chip" />
               </View>
+            </View>
+            <Pressable
+              onPress={() => router.push("/(tabs)/messages" as any)}
+              accessibilityRole="button"
+              accessibilityLabel={t("messages")}
+              className="relative p-2 min-w-[48px] min-h-[48px] items-center justify-center"
+            >
+              <MaterialIcons name="notifications" size={24} color={colors.foreground} />
+              {unread.total > 0 && (
+                <View
+                  className="absolute top-1 right-1 min-w-[20px] h-5 px-1 rounded-full items-center justify-center"
+                  style={{ backgroundColor: colors.error }}
+                >
+                  <Text className="text-xs font-bold text-white">{unread.total > 99 ? "99+" : unread.total}</Text>
+                </View>
+              )}
             </Pressable>
           </View>
 
           {/* 主要内容 */}
           <View className="flex-1 px-6 py-4 gap-6">
             {/* 我们的幸福卡片 */}
-            <View className="bg-gradient-to-b from-primary/10 to-surface rounded-3xl p-6 gap-4">
+            <GradientCard variant="primarySoft" className="rounded-3xl p-6 gap-4">
               <View className="flex-row items-center gap-3">
                 <View
                   className="w-16 h-16 rounded-full items-center justify-center"
@@ -180,30 +223,29 @@ export default function HomeScreen() {
                     {t("ourFamily")} 💍
                   </Text>
                   <Text className="text-sm text-muted">
-                    {language === "zh"
-                      ? `Our Family Album · ${MOCK_FAMILY.memberCount} Members`
-                      : `Our Family Album · ${MOCK_FAMILY.memberCount} Members`}
+                    {t("home.ourFamilyAlbumMembercount", { memberCount })}
                   </Text>
                 </View>
               </View>
 
               {/* 家庭成员头像圈 */}
               <View className="flex-row items-center gap-2">
-                {MOCK_FAMILY.members.slice(0, 5).map((member, index) => (
-                  <Image
+                {avatars.slice(0, 5).map((member, index) => (
+                  <View
                     key={member.id}
-                    source={{ uri: member.image }}
-                    className="w-10 h-10 rounded-full border-2"
+                    className="rounded-full border-2 overflow-hidden"
                     style={{ borderColor: colors.background, marginLeft: index > 0 ? -8 : 0 }}
-                  />
+                  >
+                    <UserAvatar avatar={member.avatar} name={member.name} size={36} bgClassName="bg-primary" textClassName="text-onPrimary" />
+                  </View>
                 ))}
-                {MOCK_FAMILY.memberCount > 5 && (
+                {memberCount > 5 && (
                   <View
                     className="w-10 h-10 rounded-full items-center justify-center border-2"
                     style={{ borderColor: colors.background, backgroundColor: colors.surface }}
                   >
                     <Text className="text-xs font-bold text-foreground">
-                      +{MOCK_FAMILY.memberCount - 5}
+                      +{memberCount - 5}
                     </Text>
                   </View>
                 )}
@@ -212,99 +254,115 @@ export default function HomeScreen() {
               {/* 长辈信息 */}
               <View className="gap-1">
                 <Text className="text-sm font-semibold text-foreground">
-                  {MOCK_FAMILY.name}
+                  {familyName}
                 </Text>
                 <Text className="text-xs text-muted">
-                  {language === "zh" ? MOCK_FAMILY.yearsTogetherCn : MOCK_FAMILY.yearsTogetherEn}
+                  {family?.description ?? l(MOCK_FAMILY.yearsTogetherCn, MOCK_FAMILY.yearsTogetherEn)}
                 </Text>
               </View>
-            </View>
+            </GradientCard>
 
             {/* 纪念日倒计时卡片 */}
             <Pressable
               onPress={() => router.push("/anniversary")}
-              className="bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-3xl p-6 gap-3"
+              accessibilityRole="button"
+              accessibilityLabel={t("home.viewGoldenAnniversary")}
+              className="active:opacity-80"
             >
-              <View className="flex-row items-center justify-between">
-                <View>
-                  <Text className="text-sm font-semibold text-white/80">
-                    🏆 {language === "zh" ? "金婚纪念日" : "Golden Anniversary"} · {MOCK_ANNIVERSARY.years}年
-                  </Text>
-                  <Text className="text-lg font-bold text-white">
-                    {daysUntilAnniversary} {language === "zh" ? "天后" : "Days Until"}
-                  </Text>
+              <GradientCard variant="gold" direction="horizontal" className="rounded-3xl p-6 gap-3">
+                <View className="flex-row items-center justify-between">
+                  <View>
+                    <Text className="text-sm font-semibold text-onPrimary opacity-80">
+                      🏆 {nextAnniversary ? `${l(...ANNIVERSARY_LABEL[nextAnniversary.type])} · ${nextAnniversary.years}${l("年", "y")} · ${nextAnniversary.couple}` : t("goldenAnniversary")}
+                    </Text>
+                    <Text className="text-lg font-bold text-onPrimary">
+                      {nextAnniversary ? `${nextAnniversary.days} ${t("daysUntil")}` : l("添加纪念日", "Add an anniversary")}
+                    </Text>
+                  </View>
+                  <MaterialIcons name="arrow-forward" size={24} color={colors.onPrimary} />
                 </View>
-                <MaterialIcons name="arrow-forward" size={24} color="white" />
-              </View>
+              </GradientCard>
             </Pressable>
 
             {/* 快速操作按钮 */}
-            <View className="grid grid-cols-2 gap-3">
+            <View className="flex-row gap-3">
               <Pressable
-                onPress={() => router.push("/upload")}
-                className="bg-primary rounded-2xl py-4 items-center justify-center active:opacity-80 gap-2"
+                onPress={() => router.push("/album/new" as any)}
+                accessibilityRole="button"
+                className="flex-1 bg-primary rounded-2xl py-4 items-center justify-center active:opacity-80 gap-2"
               >
-                <MaterialIcons name="add-photo-alternate" size={24} color="white" />
-                <Text className="text-sm font-semibold text-white text-center">
-                  {language === "zh" ? "创建相册" : "Create Album"}
+                <MaterialIcons name="add-photo-alternate" size={24} color={colors.onPrimary} />
+                <Text className="text-sm font-semibold text-onPrimary text-center">
+                  {t("createAlbum")}
                 </Text>
               </Pressable>
 
               <Pressable
                 onPress={() => router.push("/studio")}
-                className="bg-blue-500 rounded-2xl py-4 items-center justify-center active:opacity-80 gap-2"
+                accessibilityRole="button"
+                className="flex-1 bg-info rounded-2xl py-4 items-center justify-center active:opacity-80 gap-2"
               >
                 <MaterialIcons name="video-library" size={24} color="white" />
                 <Text className="text-sm font-semibold text-white text-center">
-                  {language === "zh" ? "制作视频" : "Make Video"}
+                  {t("makeVideoBtn")}
                 </Text>
               </Pressable>
             </View>
+
+            {/* P8: 智能推荐（真实活动，无 LLM） */}
+            {isAuthenticated && familyId ? <AIInsightsCard familyId={familyId} /> : null}
 
             {/* 回忆时光标题 */}
             <View className="flex-row items-center justify-between">
               <Text className="text-lg font-bold text-foreground">
-                {language === "zh" ? "回忆时光" : "Timeline"}
+                {t("timeline")}
               </Text>
-              <Pressable>
+              <Pressable onPress={() => router.push("/(tabs)/timeline" as any)} className="px-2 min-h-[44px] justify-center">
                 <Text className="text-sm text-primary font-semibold">
-                  {language === "zh" ? "更多" : "More"}
+                  {t("more")}
                 </Text>
               </Pressable>
             </View>
 
-            {/* 时间线列表 */}
-            <FlatList
-              data={MOCK_TIMELINE}
-              renderItem={renderTimelineItem}
-              keyExtractor={(item) => item.id.toString()}
-              scrollEnabled={false}
-            />
+            {/* 精选回忆（真实数据） */}
+            {!isAuthenticated ? (
+              <View className="bg-surface rounded-2xl p-6 items-center gap-2">
+                <MaterialIcons name="lock-outline" size={32} color={colors.muted} />
+                <Text className="text-sm text-muted">{t("messages.signInToSee")}</Text>
+              </View>
+            ) : recent.isLoading ? (
+              <ActivityIndicator color={colors.primary} className="py-6" />
+            ) : (recent.data?.length ?? 0) === 0 ? (
+              <Pressable onPress={() => router.push("/upload" as any)} className="bg-surface rounded-2xl p-6 items-center gap-2 active:opacity-80">
+                <MaterialIcons name="add-photo-alternate" size={32} color={colors.primary} />
+                <Text className="text-sm text-muted">{l("还没有回忆，上传第一张照片吧", "No memories yet — upload the first photo")}</Text>
+              </Pressable>
+            ) : (
+              <View>{(recent.data as RecentItem[]).map(renderRecentItem)}</View>
+            )}
 
             {/* 家庭成员区域 */}
             <View className="gap-3">
               <View className="flex-row items-center justify-between">
                 <Text className="text-lg font-bold text-foreground">
-                  {language === "zh" ? "家庭成员" : "Family Members"}
+                  {t("familyMembers")}
                 </Text>
                 <Pressable               onPress={() => router.push("/members")}>
                   <Text className="text-sm text-primary font-semibold">
-                    {language === "zh" ? "管理" : "Manage"}
+                    {t("manage")}
                   </Text>
                 </Pressable>
               </View>
 
               {/* 成员卡片网格 */}
               <View className="flex-row flex-wrap gap-2">
-                {MOCK_FAMILY.members.map((member) => (
+                {avatars.map((member) => (
                   <Pressable
                     key={member.id}
-                    className="flex-1 min-w-[45%] bg-surface rounded-2xl p-3 items-center gap-2"
+                    onPress={() => router.push("/members" as any)}
+                    className="flex-1 min-w-[45%] bg-surface rounded-2xl p-3 items-center gap-2 active:opacity-80"
                   >
-                    <Image
-                      source={{ uri: member.image }}
-                      className="w-12 h-12 rounded-full"
-                    />
+                    <UserAvatar avatar={member.avatar} name={member.name} size={48} bgClassName="bg-primary" textClassName="text-onPrimary" />
                     <Text className="text-xs font-semibold text-foreground text-center">
                       {member.name}
                     </Text>
@@ -316,10 +374,10 @@ export default function HomeScreen() {
               </View>
 
               {/* 邀请按钮 */}
-              <Pressable className="bg-surface rounded-2xl py-3 items-center justify-center active:opacity-80 flex-row gap-2">
+              <Pressable onPress={() => router.push("/members" as any)} className="bg-surface rounded-2xl py-3 min-h-[48px] items-center justify-center active:opacity-80 flex-row gap-2">
                 <MaterialIcons name="person-add" size={18} color={colors.primary} />
                 <Text className="text-sm font-semibold text-primary">
-                  {language === "zh" ? "邀请" : "Invite"}
+                  {t("invite")}
                 </Text>
               </Pressable>
             </View>

@@ -1,371 +1,414 @@
-import { ScrollView, Text, View, Pressable, Image, TextInput, FlatList, Modal } from "react-native";
-import { useState } from "react";
+import { ScrollView, Text, View, Pressable, TextInput, FlatList, Modal, ActivityIndicator } from "react-native";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "expo-router";
+import * as Clipboard from "expo-clipboard";
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+
 import { useLanguage } from "@/lib/language-provider";
 import { useColors } from "@/hooks/use-colors";
-import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useAuth } from "@/hooks/use-auth";
+import { useBackHandler } from "@/hooks/use-back-handler";
+import { useToast } from "@/components/toast";
 import { ScreenContainer } from "@/components/screen-container";
+import { EXPIRY_PRESETS, ShareLinkCard, type ShareLinkItem } from "@/components/share-link-card";
+import { trpc } from "@/lib/trpc";
 
 const SHARE_OPTIONS = [
-  {
-    id: 1,
-    name: "微信",
-    nameEn: "WeChat",
-    icon: "wechat",
-    color: "#09B981",
-  },
-  {
-    id: 2,
-    name: "QQ",
-    nameEn: "QQ",
-    icon: "qq",
-    color: "#0084FF",
-  },
-  {
-    id: 3,
-    name: "微博",
-    nameEn: "Weibo",
-    icon: "weibo",
-    color: "#E1306C",
-  },
-  {
-    id: 4,
-    name: "Instagram",
-    nameEn: "Instagram",
-    icon: "instagram",
-    color: "#E1306C",
-  },
-  {
-    id: 5,
-    name: "Facebook",
-    nameEn: "Facebook",
-    icon: "facebook",
-    color: "#1877F2",
-  },
-  {
-    id: 6,
-    name: "WhatsApp",
-    nameEn: "WhatsApp",
-    icon: "whatsapp",
-    color: "#25D366",
-  },
+  { id: 1, name: "微信", nameEn: "WeChat", icon: "wechat", color: "#09B981" },
+  { id: 2, name: "QQ", nameEn: "QQ", icon: "qq", color: "#0084FF" },
+  { id: 3, name: "微博", nameEn: "Weibo", icon: "weibo", color: "#E1306C" },
+  { id: 4, name: "Instagram", nameEn: "Instagram", icon: "instagram", color: "#E1306C" },
+  { id: 5, name: "Facebook", nameEn: "Facebook", icon: "facebook", color: "#1877F2" },
+  { id: 6, name: "WhatsApp", nameEn: "WhatsApp", icon: "whatsapp", color: "#25D366" },
 ];
 
-const SHARED_ALBUMS = [
-  {
-    id: 1,
-    name: "家庭聚会",
-    nameEn: "Family Gathering",
-    link: "https://golden-memory.app/share/abc123",
-    qrCode: "https://images.unsplash.com/photo-1579546069876-e67f89e7e269?w=150&q=80",
-    views: 234,
-    shares: 45,
-  },
-  {
-    id: 2,
-    name: "金婚纪念",
-    nameEn: "Golden Anniversary",
-    link: "https://golden-memory.app/share/def456",
-    qrCode: "https://images.unsplash.com/photo-1579546069876-e67f89e7e269?w=150&q=80",
-    views: 567,
-    shares: 89,
-  },
-];
+type ExpiryKey = (typeof EXPIRY_PRESETS)[number]["key"];
 
 export default function ShareScreen() {
   const router = useRouter();
-  const { t, language } = useLanguage();
+  const { t, l } = useLanguage();
   const colors = useColors();
-  const [selectedAlbum, setSelectedAlbum] = useState(1);
-  const [showQRModal, setShowQRModal] = useState(false);
+  const toast = useToast();
+  const { isAuthenticated } = useAuth();
+  const utils = trpc.useUtils();
+
+  const [selectedAlbumId, setSelectedAlbumId] = useState<number | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
+  const [newLinkExpiry, setNewLinkExpiry] = useState<ExpiryKey>("30d");
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [shareMessage, setShareMessage] = useState("");
+  /** Share currently targeted by the expiry / revoke sheets. */
+  const [expiryTarget, setExpiryTarget] = useState<ShareLinkItem | null>(null);
+  const [revokeTarget, setRevokeTarget] = useState<ShareLinkItem | null>(null);
 
-  const currentAlbum = SHARED_ALBUMS.find(a => a.id === selectedAlbum);
+  /* ------------------------------ data ------------------------------ */
 
-  const handleShare = (platform: string) => {
-    alert(
-      language === "zh"
-        ? `分享到 ${platform}`
-        : `Share to ${platform}`
-    );
+  const families = trpc.family.getUserFamilies.useQuery(undefined, { enabled: isAuthenticated });
+  const familyId = families.data?.[0]?.id;
+
+  const albums = trpc.album.list.useQuery(
+    { familyId: familyId ?? 0, take: 50 },
+    { enabled: isAuthenticated && !!familyId },
+  );
+
+  useEffect(() => {
+    if (selectedAlbumId === null && albums.data?.length) setSelectedAlbumId(albums.data[0].id);
+  }, [albums.data, selectedAlbumId]);
+
+  const shares = trpc.interaction.getShares.useQuery(
+    { albumId: selectedAlbumId ?? 0, status: showInactive ? "all" : "active", take: 50 },
+    { enabled: isAuthenticated && !!selectedAlbumId },
+  );
+
+  const shareList = useMemo<ShareLinkItem[]>(() => (shares.data ?? []) as ShareLinkItem[], [shares.data]);
+  const activeShare = shareList.find((s) => s.status === "active") ?? null;
+  const stats = useMemo(
+    () => ({
+      links: shareList.length,
+      active: shareList.filter((s) => s.status === "active").length,
+      clicks: shareList.reduce((sum, s) => sum + s.clicks, 0),
+    }),
+    [shareList],
+  );
+
+  const invalidateShares = () => utils.interaction.getShares.invalidate();
+
+  const createShare = trpc.interaction.createShare.useMutation({
+    onSuccess: async (share) => {
+      await invalidateShares();
+      await Clipboard.setStringAsync(share.shareUrl);
+      toast.success(t("share.linkCreated"));
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const revokeShare = trpc.interaction.revokeShare.useMutation({
+    onSuccess: async () => {
+      await invalidateShares();
+      setRevokeTarget(null);
+      toast.success(t("share.revoked"));
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const updateExpiry = trpc.interaction.updateShareExpiry.useMutation({
+    onSuccess: async () => {
+      await invalidateShares();
+      setExpiryTarget(null);
+      toast.success(t("share.expiryUpdated"));
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const busy = createShare.isPending || revokeShare.isPending || updateExpiry.isPending;
+
+  // Android back closes whichever sheet is open before leaving the screen.
+  useBackHandler(!!expiryTarget || !!revokeTarget || showInviteModal, () => {
+    setExpiryTarget(null);
+    setRevokeTarget(null);
+    setShowInviteModal(false);
+    return true;
+  });
+
+  /* ----------------------------- actions ---------------------------- */
+
+  const handleCreateLink = () => {
+    if (!selectedAlbumId) return;
+    const preset = EXPIRY_PRESETS.find((p) => p.key === newLinkExpiry);
+    createShare.mutate({
+      albumId: selectedAlbumId,
+      platform: "link",
+      caption: shareMessage.trim() || undefined,
+      expiresInDays: preset?.days ?? undefined,
+    });
   };
 
-  const handleCopyLink = () => {
-    alert(
-      language === "zh"
-        ? "分享链接已复制到剪贴板"
-        : "Share link copied to clipboard"
-    );
+  const handleCopy = async (url: string) => {
+    await Clipboard.setStringAsync(url);
+    toast.success(t("share.shareLinkCopiedTo"));
+  };
+
+  const handleShare = (platform: string) => {
+    if (activeShare) void Clipboard.setStringAsync(activeShare.shareUrl);
+    toast.success(t("share.sharedToPlatform", { platform }));
   };
 
   const handleSendInvite = () => {
     if (!inviteEmail.trim()) {
-      alert(language === "zh" ? "请输入邮箱地址" : "Please enter email address");
+      toast.warning(t("common.pleaseEnterEmailAddress"));
       return;
     }
-    alert(
-      language === "zh"
-        ? `邀请已发送至 ${inviteEmail}`
-        : `Invitation sent to ${inviteEmail}`
-    );
+    toast.success(t("common.invitationSentToInviteemail", { inviteEmail }));
     setInviteEmail("");
     setShowInviteModal(false);
   };
 
-  const renderShareOption = ({ item }: any) => (
-    <Pressable
-      onPress={() => handleShare(language === "zh" ? item.name : item.nameEn)}
-      className="flex-1 mx-2 mb-4 active:opacity-80"
-    >
+  /* ----------------------------- render ----------------------------- */
+
+  const renderShareOption = ({ item }: { item: (typeof SHARE_OPTIONS)[number] }) => (
+    <Pressable onPress={() => handleShare(l(item.name, item.nameEn))} className="flex-1 mx-2 mb-4 active:opacity-80">
       <View className="gap-2 items-center">
-        <View
-          className="w-16 h-16 rounded-full items-center justify-center"
-          style={{ backgroundColor: item.color + "20" }}
-        >
-          <MaterialIcons
-            name="share"
-            size={28}
-            color={item.color}
-          />
+        <View className="w-16 h-16 rounded-full items-center justify-center" style={{ backgroundColor: item.color + "20" }}>
+          <MaterialIcons name="share" size={28} color={item.color} />
         </View>
-        <Text className="text-sm font-semibold text-foreground text-center">
-          {language === "zh" ? item.name : item.nameEn}
-        </Text>
+        <Text className="text-sm font-semibold text-foreground text-center">{l(item.name, item.nameEn)}</Text>
       </View>
     </Pressable>
   );
 
-  const renderSharedAlbum = ({ item }: any) => (
-    <Pressable
-      onPress={() => setSelectedAlbum(item.id)}
-      className={`mb-3 rounded-2xl p-4 ${
-        selectedAlbum === item.id ? "bg-primary/20 border-2 border-primary" : "bg-surface"
-      }`}
-    >
-      <View className="gap-2">
-        <Text className="text-lg font-bold text-foreground">
-          {language === "zh" ? item.name : item.nameEn}
-        </Text>
-        <View className="flex-row gap-4">
-          <View className="flex-row items-center gap-1">
-            <MaterialIcons name="visibility" size={16} color={colors.muted} />
-            <Text className="text-xs text-muted">{item.views}</Text>
-          </View>
-          <View className="flex-row items-center gap-1">
-            <MaterialIcons name="share" size={16} color={colors.muted} />
-            <Text className="text-xs text-muted">{item.shares}</Text>
-          </View>
-        </View>
-      </View>
-    </Pressable>
+  const ExpiryChips = ({ value, onChange }: { value: ExpiryKey; onChange: (k: ExpiryKey) => void }) => (
+    <View className="flex-row flex-wrap gap-2">
+      {EXPIRY_PRESETS.map((p) => (
+        <Pressable
+          key={p.key}
+          onPress={() => onChange(p.key)}
+          accessibilityRole="radio"
+          accessibilityState={{ selected: value === p.key }}
+          className={`px-4 py-2 min-h-[44px] justify-center rounded-full ${value === p.key ? "bg-primary" : "bg-surface"}`}
+        >
+          <Text className={`text-sm font-semibold ${value === p.key ? "text-onPrimary" : "text-foreground"}`}>
+            {t(`share.expiry.${p.key}` as any)}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
   );
 
   return (
     <ScreenContainer className="bg-background p-0">
-      <ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
         <View className="flex-1">
           {/* 顶部导航 */}
           <View className="flex-row items-center justify-between px-6 py-4 bg-surface">
-            <Pressable onPress={() => router.back()} className="p-2">
+            <Pressable onPress={() => router.back()} className="p-2 min-w-[48px] min-h-[48px] items-center justify-center">
               <MaterialIcons name="arrow-back" size={24} color={colors.foreground} />
             </Pressable>
-            <Text className="text-lg font-bold text-foreground">
-              {language === "zh" ? "分享" : "Share"}
-            </Text>
+            <Text className="text-lg font-bold text-foreground">{t("common.share")}</Text>
             <View className="w-10" />
           </View>
 
-          {/* 主要内容 */}
           <View className="flex-1 px-6 py-4 gap-6">
-            {/* 选择相册 */}
-            <View className="gap-3">
-              <Text className="text-lg font-bold text-foreground">
-                {language === "zh" ? "选择相册" : "Select Album"}
-              </Text>
-              <FlatList
-                data={SHARED_ALBUMS}
-                renderItem={renderSharedAlbum}
-                keyExtractor={(item) => item.id.toString()}
-                scrollEnabled={false}
-              />
-            </View>
+            {!isAuthenticated ? (
+              <View className="items-center justify-center gap-3 py-16">
+                <MaterialIcons name="lock-outline" size={48} color={colors.muted} />
+                <Text className="text-lg font-semibold text-foreground">{t("messages.signInToSee")}</Text>
+              </View>
+            ) : (
+              <>
+                {/* 选择相册 */}
+                <View className="gap-3">
+                  <Text className="text-lg font-bold text-foreground">{t("common.selectAlbum")}</Text>
+                  {albums.isLoading ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : (
+                    <FlatList
+                      data={albums.data ?? []}
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      keyExtractor={(item) => String(item.id)}
+                      contentContainerStyle={{ gap: 8 }}
+                      renderItem={({ item }) => (
+                        <Pressable
+                          onPress={() => setSelectedAlbumId(item.id)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: selectedAlbumId === item.id }}
+                          className={`px-4 py-3 min-h-[48px] justify-center rounded-2xl ${
+                            selectedAlbumId === item.id ? "bg-primary/20 border-2 border-primary" : "bg-surface"
+                          }`}
+                        >
+                          <Text className="font-semibold text-foreground">{item.name}</Text>
+                          <Text className="text-xs text-muted">{item.mediaCount} {t("photos")}</Text>
+                        </Pressable>
+                      )}
+                    />
+                  )}
+                </View>
 
-            {/* 分享链接和二维码 */}
-            {currentAlbum && (
-              <View className="gap-3">
-                <Text className="text-lg font-bold text-foreground">
-                  {language === "zh" ? "分享链接" : "Share Link"}
-                </Text>
-
-                <View className="bg-surface rounded-2xl p-4 gap-3">
-                  {/* 分享链接 */}
-                  <View className="gap-2">
-                    <Text className="text-sm text-muted">
-                      {language === "zh" ? "链接地址" : "Link Address"}
-                    </Text>
-                    <View className="flex-row items-center gap-2 bg-background rounded-lg px-3 py-2">
-                      <Text className="flex-1 text-xs text-foreground font-mono">
-                        {currentAlbum.link}
-                      </Text>
-                      <Pressable onPress={handleCopyLink} className="p-2">
-                        <MaterialIcons name="content-copy" size={18} color={colors.primary} />
-                      </Pressable>
-                    </View>
-                  </View>
-
-                  {/* 二维码 */}
-                  <View className="gap-2">
-                    <Text className="text-sm text-muted">
-                      {language === "zh" ? "二维码" : "QR Code"}
-                    </Text>
+                {/* 生成新链接 */}
+                <View className="gap-3">
+                  <Text className="text-lg font-bold text-foreground">{t("share.createLink")}</Text>
+                  <View className="bg-surface rounded-2xl p-4 gap-3">
+                    <Text className="text-sm text-muted">{t("share.expiry")}</Text>
+                    <ExpiryChips value={newLinkExpiry} onChange={setNewLinkExpiry} />
+                    <TextInput
+                      placeholder={t("share.enterShareMessageOptional")}
+                      value={shareMessage}
+                      onChangeText={setShareMessage}
+                      placeholderTextColor={colors.muted}
+                      className="bg-background rounded-2xl px-4 py-3 text-foreground"
+                      multiline
+                      maxLength={200}
+                    />
                     <Pressable
-                      onPress={() => setShowQRModal(true)}
-                      className="items-center py-4 active:opacity-80"
+                      onPress={handleCreateLink}
+                      disabled={!selectedAlbumId || busy}
+                      className="flex-row items-center justify-center gap-2 bg-primary rounded-full py-3 min-h-[48px] active:opacity-80"
+                      style={!selectedAlbumId || busy ? { opacity: 0.6 } : undefined}
                     >
-                      <Image
-                        source={{ uri: currentAlbum.qrCode }}
-                        className="w-32 h-32 rounded-lg"
-                      />
+                      {createShare.isPending ? (
+                        <ActivityIndicator color={colors.onPrimary} />
+                      ) : (
+                        <MaterialIcons name="add-link" size={20} color={colors.onPrimary} />
+                      )}
+                      <Text className="text-onPrimary font-bold text-lg">{t("share.createLink")}</Text>
                     </Pressable>
                   </View>
                 </View>
-              </View>
-            )}
 
-            {/* 社交分享 */}
-            <View className="gap-3">
-              <Text className="text-lg font-bold text-foreground">
-                {language === "zh" ? "分享到社交媒体" : "Share to Social Media"}
-              </Text>
-              <FlatList
-                data={SHARE_OPTIONS}
-                renderItem={renderShareOption}
-                keyExtractor={(item) => item.id.toString()}
-                numColumns={3}
-                scrollEnabled={false}
-                columnWrapperStyle={{ gap: 0 }}
-              />
-            </View>
-
-            {/* 分享消息 */}
-            <View className="gap-3">
-              <Text className="text-lg font-bold text-foreground">
-                {language === "zh" ? "分享消息" : "Share Message"}
-              </Text>
-              <TextInput
-                placeholder={language === "zh" ? "输入分享消息（可选）" : "Enter share message (optional)"}
-                value={shareMessage}
-                onChangeText={setShareMessage}
-                placeholderTextColor={colors.muted}
-                className="bg-surface rounded-2xl px-4 py-3 text-foreground h-24"
-                multiline
-                maxLength={200}
-              />
-              <Text className="text-xs text-muted text-right">
-                {shareMessage.length}/200
-              </Text>
-            </View>
-
-            {/* 邀请成员 */}
-            <View className="gap-3">
-              <Text className="text-lg font-bold text-foreground">
-                {language === "zh" ? "邀请成员" : "Invite Members"}
-              </Text>
-              <Pressable
-                onPress={() => setShowInviteModal(true)}
-                className="flex-row items-center justify-center gap-2 bg-primary rounded-full py-3 active:opacity-80"
-              >
-                <MaterialIcons name="person-add" size={20} color="white" />
-                <Text className="text-white font-bold text-lg">
-                  {language === "zh" ? "邀请成员" : "Invite Members"}
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* 分享统计 */}
-            {currentAlbum && (
-              <View className="gap-3">
-                <Text className="text-lg font-bold text-foreground">
-                  {language === "zh" ? "分享统计" : "Share Statistics"}
-                </Text>
-                <View className="flex-row gap-3">
-                  <View className="flex-1 bg-surface rounded-2xl p-4 items-center gap-2">
-                    <MaterialIcons name="visibility" size={28} color={colors.primary} />
-                    <Text className="text-2xl font-bold text-foreground">
-                      {currentAlbum.views}
-                    </Text>
-                    <Text className="text-xs text-muted">
-                      {language === "zh" ? "浏览次数" : "Views"}
-                    </Text>
+                {/* 我的分享链接 */}
+                <View className="gap-3">
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-lg font-bold text-foreground">{t("share.myLinks")}</Text>
+                    <Pressable
+                      onPress={() => setShowInactive((v) => !v)}
+                      className="px-3 py-2 min-h-[44px] justify-center"
+                    >
+                      <Text className="text-sm font-semibold text-primary">
+                        {showInactive ? t("share.hideInactive") : t("share.showAll")}
+                      </Text>
+                    </Pressable>
                   </View>
-                  <View className="flex-1 bg-surface rounded-2xl p-4 items-center gap-2">
-                    <MaterialIcons name="share" size={28} color={colors.primary} />
-                    <Text className="text-2xl font-bold text-foreground">
-                      {currentAlbum.shares}
-                    </Text>
-                    <Text className="text-xs text-muted">
-                      {language === "zh" ? "分享次数" : "Shares"}
-                    </Text>
+                  {shares.isLoading ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : shareList.length === 0 ? (
+                    <View className="bg-surface rounded-2xl p-6 items-center gap-2">
+                      <MaterialIcons name="link-off" size={32} color={colors.muted} />
+                      <Text className="text-sm text-muted">{t("share.noLinks")}</Text>
+                    </View>
+                  ) : (
+                    shareList.map((share) => (
+                      <ShareLinkCard
+                        key={share.id}
+                        share={share}
+                        busy={busy}
+                        onCopy={() => void handleCopy(share.shareUrl)}
+                        onChangeExpiry={() => setExpiryTarget(share)}
+                        onRevoke={() => setRevokeTarget(share)}
+                      />
+                    ))
+                  )}
+                </View>
+
+                {/* 社交分享 */}
+                <View className="gap-3">
+                  <Text className="text-lg font-bold text-foreground">{t("common.shareToSocialMedia")}</Text>
+                  <FlatList
+                    data={SHARE_OPTIONS}
+                    renderItem={renderShareOption}
+                    keyExtractor={(item) => item.id.toString()}
+                    numColumns={3}
+                    scrollEnabled={false}
+                    columnWrapperStyle={{ gap: 0 }}
+                  />
+                </View>
+
+                {/* 邀请成员 */}
+                <View className="gap-3">
+                  <Text className="text-lg font-bold text-foreground">{t("share.inviteMembers")}</Text>
+                  <Pressable
+                    onPress={() => setShowInviteModal(true)}
+                    className="flex-row items-center justify-center gap-2 bg-primary rounded-full py-3 min-h-[48px] active:opacity-80"
+                  >
+                    <MaterialIcons name="person-add" size={20} color={colors.onPrimary} />
+                    <Text className="text-onPrimary font-bold text-lg">{t("share.inviteMembers")}</Text>
+                  </Pressable>
+                </View>
+
+                {/* 分享统计 */}
+                <View className="gap-3">
+                  <Text className="text-lg font-bold text-foreground">{t("share.shareStatistics")}</Text>
+                  <View className="flex-row gap-3">
+                    <View className="flex-1 bg-surface rounded-2xl p-4 items-center gap-2">
+                      <MaterialIcons name="visibility" size={28} color={colors.primary} />
+                      <Text className="text-2xl font-bold text-foreground">{stats.clicks}</Text>
+                      <Text className="text-xs text-muted">{t("share.views")}</Text>
+                    </View>
+                    <View className="flex-1 bg-surface rounded-2xl p-4 items-center gap-2">
+                      <MaterialIcons name="link" size={28} color={colors.primary} />
+                      <Text className="text-2xl font-bold text-foreground">
+                        {stats.active}/{stats.links}
+                      </Text>
+                      <Text className="text-xs text-muted">{t("share.status.active")}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
+              </>
             )}
           </View>
         </View>
       </ScrollView>
 
-      {/* 二维码模态框 */}
-      <Modal
-        visible={showQRModal}
-        transparent
-        animationType="fade"
-      >
+      {/* 修改有效期 */}
+      <Modal visible={!!expiryTarget} transparent animationType="fade" onRequestClose={() => setExpiryTarget(null)}>
         <View className="flex-1 bg-black/50 items-center justify-center p-6">
-          <View className="bg-background rounded-3xl p-6 gap-4 items-center">
-            <Text className="text-2xl font-bold text-foreground">
-              {language === "zh" ? "分享二维码" : "Share QR Code"}
-            </Text>
-            {currentAlbum && (
-              <Image
-                source={{ uri: currentAlbum.qrCode }}
-                className="w-48 h-48 rounded-lg"
-              />
-            )}
+          <View className="bg-background rounded-3xl p-6 w-full gap-4">
+            <Text className="text-2xl font-bold text-foreground">{t("share.expiry")}</Text>
+            <View className="flex-row flex-wrap gap-2">
+              {EXPIRY_PRESETS.map((p) => (
+                <Pressable
+                  key={p.key}
+                  disabled={updateExpiry.isPending}
+                  onPress={() => expiryTarget && updateExpiry.mutate({ id: expiryTarget.id, expiresInDays: p.days })}
+                  className="px-4 py-2 min-h-[48px] justify-center rounded-full bg-surface active:opacity-80"
+                >
+                  <Text className="text-sm font-semibold text-foreground">{t(`share.expiry.${p.key}` as any)}</Text>
+                </Pressable>
+              ))}
+            </View>
             <Pressable
-              onPress={() => setShowQRModal(false)}
-              className="bg-primary rounded-full px-6 py-3 active:opacity-80"
+              onPress={() => setExpiryTarget(null)}
+              className="bg-surface rounded-full py-3 min-h-[48px] items-center justify-center active:opacity-80"
             >
-              <Text className="text-white font-bold">
-                {language === "zh" ? "关闭" : "Close"}
-              </Text>
+              <Text className="font-semibold text-foreground">{t("cancel")}</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
 
-      {/* 邀请成员模态框 */}
-      <Modal
-        visible={showInviteModal}
-        transparent
-        animationType="fade"
-      >
+      {/* 撤销确认 */}
+      <Modal visible={!!revokeTarget} transparent animationType="fade" onRequestClose={() => setRevokeTarget(null)}>
         <View className="flex-1 bg-black/50 items-center justify-center p-6">
           <View className="bg-background rounded-3xl p-6 w-full gap-4">
-            <Text className="text-2xl font-bold text-foreground">
-              {language === "zh" ? "邀请成员" : "Invite Members"}
+            <View className="flex-row items-center gap-2">
+              <MaterialIcons name="link-off" size={24} color={colors.error} />
+              <Text className="text-2xl font-bold text-foreground">{t("share.revoke")}</Text>
+            </View>
+            <Text className="text-sm text-muted">{t("share.revokeConfirm")}</Text>
+            <Text className="text-xs text-foreground font-mono" numberOfLines={1}>
+              {revokeTarget?.shareUrl}
             </Text>
+            <View className="flex-row gap-3">
+              <Pressable
+                onPress={() => setRevokeTarget(null)}
+                className="flex-1 bg-surface rounded-full py-3 min-h-[48px] items-center justify-center active:opacity-80"
+              >
+                <Text className="font-semibold text-foreground">{t("cancel")}</Text>
+              </Pressable>
+              <Pressable
+                disabled={revokeShare.isPending}
+                onPress={() => revokeTarget && revokeShare.mutate({ id: revokeTarget.id })}
+                className="flex-1 rounded-full py-3 min-h-[48px] items-center justify-center active:opacity-80"
+                style={{ backgroundColor: colors.error }}
+              >
+                {revokeShare.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text className="font-semibold text-white">{t("share.revoke")}</Text>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
+      {/* 邀请成员模态框 */}
+      <Modal visible={showInviteModal} transparent animationType="fade" onRequestClose={() => setShowInviteModal(false)}>
+        <View className="flex-1 bg-black/50 items-center justify-center p-6">
+          <View className="bg-background rounded-3xl p-6 w-full gap-4">
+            <Text className="text-2xl font-bold text-foreground">{t("share.inviteMembers")}</Text>
             <View className="gap-2">
-              <Text className="text-sm font-semibold text-foreground">
-                {language === "zh" ? "邮箱地址" : "Email Address"}
-              </Text>
+              <Text className="text-sm font-semibold text-foreground">{t("common.emailAddress")}</Text>
               <TextInput
-                placeholder={language === "zh" ? "输入邮箱地址" : "Enter email address"}
+                placeholder={t("common.enterEmailAddress")}
                 value={inviteEmail}
                 onChangeText={setInviteEmail}
                 keyboardType="email-address"
@@ -373,23 +416,18 @@ export default function ShareScreen() {
                 className="bg-surface rounded-2xl px-4 py-3 text-foreground"
               />
             </View>
-
             <View className="flex-row gap-3">
               <Pressable
                 onPress={() => setShowInviteModal(false)}
-                className="flex-1 bg-surface rounded-full py-3 items-center justify-center active:opacity-80"
+                className="flex-1 bg-surface rounded-full py-3 min-h-[48px] items-center justify-center active:opacity-80"
               >
-                <Text className="font-semibold text-foreground">
-                  {language === "zh" ? "取消" : "Cancel"}
-                </Text>
+                <Text className="font-semibold text-foreground">{t("cancel")}</Text>
               </Pressable>
               <Pressable
                 onPress={handleSendInvite}
-                className="flex-1 bg-primary rounded-full py-3 items-center justify-center active:opacity-80"
+                className="flex-1 bg-primary rounded-full py-3 min-h-[48px] items-center justify-center active:opacity-80"
               >
-                <Text className="font-semibold text-white">
-                  {language === "zh" ? "发送邀请" : "Send Invite"}
-                </Text>
+                <Text className="font-semibold text-onPrimary">{t("common.sendInvite")}</Text>
               </Pressable>
             </View>
           </View>

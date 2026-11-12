@@ -22,6 +22,76 @@
       "when": 1794350113862,
       "tag": "0002_tranquil_mesmero",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1794378360693,
+      "tag": "0003_p2_notifications_roles_indexes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1794379948188,
+      "tag": "0004_p3_storage_keys_share_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1794390106829,
+      "tag": "0005_p8_studio_jobs_prefs_ai_password",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1794392192610,
+      "tag": "0006_p9_verification_backups_queue",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1794412609908,
+      "tag": "0007_p10_push_sms_backup_targets",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1794414506138,
+      "tag": "0008_p11_sms_login_backup_target_kinds",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1794416286387,
+      "tag": "0009_p12_metrics_restore_jobs_merges_quiet",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1794419144256,
+      "tag": "0010_p13_alert_channels_rules_multi_targets_digest_merge_undo",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1794420420218,
+      "tag": "0011_p14_incidents_escalation_restore_items_undo_quota_retention_merge_choices",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1794471209335,
+      "tag": "0012_p15_oncall_copy_jobs_orphans_highlights_uploaded_keys",
+      "breakpoints": true
     }
   ]
 }

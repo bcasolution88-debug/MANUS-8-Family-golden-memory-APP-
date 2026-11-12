@@ -1,149 +1,203 @@
+import { and, desc, eq, like, sql } from "drizzle-orm";
 import { z } from "zod";
-import { protectedProcedure, router } from "./_core/trpc";
+
+import { albums, comments, likes, media } from "@/drizzle/schema";
 import {
   requireAlbumAccess,
+  requireFamilyEditor,
   requireFamilyMember,
-  requireMediaAccess,
-  requireMediaBelongsToAlbum,
-} from "./_core/authorization";
-import {
-  createAlbum,
-  getAlbumsByFamily,
-  getAlbumById,
-  uploadMedia,
-  getMediaByAlbum,
-  addLike,
-  removeLike,
-  getLikesByMedia,
-  addComment,
-  getCommentsByMedia,
-  deleteComment,
-} from "./db";
+} from "@/server/_core/authorization";
+import { protectedProcedure, router } from "@/server/_core/trpc";
+import { getDb } from "@/server/db";
+import { notifyFamily } from "@/server/notifications";
+
+/**
+ * Album router — single source of truth for album CRUD + stats.
+ *
+ * Merged from the former `album` (v1, db.ts helpers) and `albumDetail` routers.
+ * Likes / comments / shares live in `interactionRouter`; media CRUD and uploads
+ * live in `mediaRouter`.
+ *
+ * Categories match the Upload / Album screens: daily / gathering / travel /
+ * memorial / other (plus legacy values kept for existing rows).
+ */
+
+export const ALBUM_CATEGORIES = [
+  "daily",
+  "gathering",
+  "travel",
+  "memorial",
+  "other",
+  // legacy values from the old albumDetail router
+  "anniversary",
+  "memory",
+  "timeline",
+  "story",
+] as const;
+
+const idInput = z.coerce.number().int().positive();
+
+async function requireDatabase() {
+  const database = await getDb();
+  if (!database) throw new Error("Database not available");
+  return database;
+}
 
 export const albumRouter = router({
-  createAlbum: protectedProcedure
+  create: protectedProcedure
     .input(
       z.object({
-        familyId: z.number().int().positive(),
+        familyId: idInput,
         name: z.string().min(1).max(255),
         description: z.string().max(5000).optional(),
-        category: z.string().max(64).optional(),
-      }),
-    )
-    .mutation(async ({ input, ctx }) => {
-      await requireFamilyMember(ctx.user.id, input.familyId);
-      return createAlbum({
-        ...input,
-        createdBy: ctx.user.id,
-        isPrivate: false,
-      });
-    }),
-
-  listAlbums: protectedProcedure
-    .input(z.object({ familyId: z.number().int().positive() }))
-    .query(async ({ input, ctx }) => {
-      await requireFamilyMember(ctx.user.id, input.familyId);
-      return getAlbumsByFamily(input.familyId);
-    }),
-
-  getAlbum: protectedProcedure
-    .input(z.object({ albumId: z.number().int().positive() }))
-    .query(async ({ input, ctx }) => {
-      await requireAlbumAccess(ctx.user.id, input.albumId);
-      return getAlbumById(input.albumId);
-    }),
-
-  uploadMedia: protectedProcedure
-    .input(
-      z.object({
-        albumId: z.number().int().positive(),
-        familyId: z.number().int().positive(),
-        type: z.enum(["photo", "video"]),
-        url: z.string().url(),
+        category: z.enum(ALBUM_CATEGORIES).default("other"),
+        isPrivate: z.boolean().default(false),
         thumbnail: z.string().url().optional(),
-        title: z.string().max(255).optional(),
-        description: z.string().max(20000).optional(),
-        duration: z.number().int().nonnegative().optional(),
-        fileSize: z
-          .number()
-          .int()
-          .nonnegative()
-          .max(1024 * 1024 * 1024)
-          .optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      const album = await requireAlbumAccess(ctx.user.id, input.albumId);
-      if (album.familyId !== input.familyId)
-        throw new Error("Family does not match album");
-      return uploadMedia({ ...input, uploadedBy: ctx.user.id });
+      await requireFamilyEditor(ctx.user.id, input.familyId);
+      const database = await requireDatabase();
+      const inserted = await database.insert(albums).values({
+        familyId: input.familyId,
+        createdBy: ctx.user.id,
+        name: input.name,
+        description: input.description,
+        category: input.category,
+        isPrivate: input.isPrivate,
+        thumbnail: input.thumbnail,
+      });
+      const id = Number(inserted[0].insertId);
+      const rows = await database.select().from(albums).where(eq(albums.id, id)).limit(1);
+      // Private albums are not announced.
+      if (!input.isPrivate) {
+        await notifyFamily(
+          input.familyId,
+          { actorId: ctx.user.id, type: "upload", albumId: id, preview: input.name },
+          ctx.user.id,
+        );
+      }
+      return rows[0];
     }),
 
-  getMediaByAlbum: protectedProcedure
-    .input(z.object({ albumId: z.number().int().positive() }))
-    .query(async ({ input, ctx }) => {
-      await requireAlbumAccess(ctx.user.id, input.albumId);
-      return getMediaByAlbum(input.albumId);
-    }),
-
-  addLike: protectedProcedure
-    .input(z.object({ mediaId: z.number().int().positive() }))
-    .mutation(async ({ input, ctx }) => {
-      await requireMediaAccess(ctx.user.id, input.mediaId);
-      await addLike({ mediaId: input.mediaId, userId: ctx.user.id });
-      return { success: true };
-    }),
-
-  removeLike: protectedProcedure
-    .input(z.object({ mediaId: z.number().int().positive() }))
-    .mutation(async ({ input, ctx }) => {
-      await requireMediaAccess(ctx.user.id, input.mediaId);
-      await removeLike(input.mediaId, ctx.user.id);
-      return { success: true };
-    }),
-
-  getLikes: protectedProcedure
-    .input(z.object({ mediaId: z.number().int().positive() }))
-    .query(async ({ input, ctx }) => {
-      await requireMediaAccess(ctx.user.id, input.mediaId);
-      return getLikesByMedia(input.mediaId);
-    }),
-
-  addComment: protectedProcedure
+  list: protectedProcedure
     .input(
       z.object({
-        mediaId: z.number().int().positive(),
-        content: z.string().min(1).max(10000),
-        rating: z.number().int().min(1).max(5).optional(),
+        familyId: idInput,
+        category: z.enum(ALBUM_CATEGORIES).optional(),
+        search: z.string().trim().max(100).optional(),
+        sort: z.enum(["newest", "oldest", "name"]).default("newest"),
+        skip: z.coerce.number().int().min(0).default(0),
+        take: z.coerce.number().int().min(1).max(100).default(20),
       }),
     )
-    .mutation(async ({ input, ctx }) => {
-      await requireMediaAccess(ctx.user.id, input.mediaId);
-      return addComment({ ...input, userId: ctx.user.id });
-    }),
-
-  getComments: protectedProcedure
-    .input(z.object({ mediaId: z.number().int().positive() }))
     .query(async ({ input, ctx }) => {
-      await requireMediaAccess(ctx.user.id, input.mediaId);
-      return getCommentsByMedia(input.mediaId);
+      const member = await requireFamilyMember(ctx.user.id, input.familyId);
+      const database = await requireDatabase();
+      const canSeePrivate = member.role === "owner" || member.role === "admin";
+      const orderBy =
+        input.sort === "oldest"
+          ? albums.createdAt
+          : input.sort === "name"
+            ? albums.name
+            : desc(albums.createdAt);
+
+      return database
+        .select({
+          album: albums,
+          mediaCount: sql<number>`(select count(*) from ${media} where ${media.albumId} = ${albums.id})`,
+        })
+        .from(albums)
+        .where(
+          and(
+            eq(albums.familyId, input.familyId),
+            input.category ? eq(albums.category, input.category) : undefined,
+            input.search ? like(albums.name, `%${input.search}%`) : undefined,
+            // Private albums: visible to creator and family admins only.
+            canSeePrivate
+              ? undefined
+              : sql`(${albums.isPrivate} = false OR ${albums.createdBy} = ${ctx.user.id})`,
+          ),
+        )
+        .orderBy(orderBy)
+        .limit(input.take)
+        .offset(input.skip)
+        .then((rows) => rows.map((r) => ({ ...r.album, mediaCount: Number(r.mediaCount) })));
     }),
 
-  deleteComment: protectedProcedure
+  get: protectedProcedure
+    .input(z.object({ id: idInput }))
+    .query(async ({ input, ctx }) => requireAlbumAccess(ctx.user.id, input.id)),
+
+  update: protectedProcedure
     .input(
       z.object({
-        commentId: z.number().int().positive(),
-        mediaId: z.number().int().positive(),
+        id: idInput,
+        name: z.string().min(1).max(255).optional(),
+        description: z.string().max(5000).nullable().optional(),
+        category: z.enum(ALBUM_CATEGORIES).optional(),
+        thumbnail: z.string().url().nullable().optional(),
+        isPrivate: z.boolean().optional(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
-      await requireMediaAccess(ctx.user.id, input.mediaId);
-      const comment = (await getCommentsByMedia(input.mediaId)).find(
-        (item) => item.id === input.commentId,
-      );
-      if (!comment || comment.userId !== ctx.user.id)
-        throw new Error("Not authorized to delete this comment");
-      await deleteComment(input.commentId, input.mediaId);
+      const album = await requireAlbumAccess(ctx.user.id, input.id);
+      const member = await requireFamilyMember(ctx.user.id, album.familyId);
+      const isAdmin = member.role === "owner" || member.role === "admin";
+      if (album.createdBy !== ctx.user.id && !isAdmin)
+        throw new Error("Only the album creator or a family admin can update it");
+      const database = await requireDatabase();
+      const { id, ...patch } = input;
+      await database.update(albums).set(patch).where(eq(albums.id, id));
+      const rows = await database.select().from(albums).where(eq(albums.id, id)).limit(1);
+      return rows[0];
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: idInput }))
+    .mutation(async ({ input, ctx }) => {
+      const album = await requireAlbumAccess(ctx.user.id, input.id);
+      const member = await requireFamilyMember(ctx.user.id, album.familyId);
+      const isAdmin = member.role === "owner" || member.role === "admin";
+      if (album.createdBy !== ctx.user.id && !isAdmin)
+        throw new Error("Only the album creator or a family admin can delete it");
+      const database = await requireDatabase();
+      // Cascade: media -> likes/comments -> album (no DB-level FKs in this schema).
+      const mediaIds = (
+        await database.select({ id: media.id }).from(media).where(eq(media.albumId, input.id))
+      ).map((m) => m.id);
+      if (mediaIds.length) {
+        await database.delete(likes).where(sql`${likes.mediaId} in (${sql.join(mediaIds.map((m) => sql`${m}`), sql`, `)})`);
+        await database.delete(comments).where(sql`${comments.mediaId} in (${sql.join(mediaIds.map((m) => sql`${m}`), sql`, `)})`);
+        await database.delete(media).where(eq(media.albumId, input.id));
+      }
+      await database.delete(albums).where(eq(albums.id, input.id));
       return { success: true };
+    }),
+
+  stats: protectedProcedure
+    .input(z.object({ id: idInput }))
+    .query(async ({ input, ctx }) => {
+      const album = await requireAlbumAccess(ctx.user.id, input.id);
+      const database = await requireDatabase();
+      const [row] = await database
+        .select({
+          mediaCount: sql<number>`count(distinct ${media.id})`,
+          photoCount: sql<number>`count(distinct case when ${media.type} = 'photo' then ${media.id} end)`,
+          videoCount: sql<number>`count(distinct case when ${media.type} = 'video' then ${media.id} end)`,
+          likeCount: sql<number>`coalesce(sum(${media.likeCount}), 0)`,
+          commentCount: sql<number>`coalesce(sum(${media.commentCount}), 0)`,
+        })
+        .from(media)
+        .where(eq(media.albumId, input.id));
+      return {
+        mediaCount: Number(row?.mediaCount ?? 0),
+        photoCount: Number(row?.photoCount ?? 0),
+        videoCount: Number(row?.videoCount ?? 0),
+        likeCount: Number(row?.likeCount ?? 0),
+        commentCount: Number(row?.commentCount ?? 0),
+        createdAt: album.createdAt,
+        updatedAt: album.updatedAt,
+      };
     }),
 });

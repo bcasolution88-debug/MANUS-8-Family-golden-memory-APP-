@@ -2,10 +2,21 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Language, translations } from './i18n';
 
+type TranslationParams = Record<string, string | number>;
+
 interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => Promise<void>;
-  t: (key: keyof typeof translations.zh) => string;
+  /**
+   * Translate a key. Optional `params` are interpolated into `{{name}}` placeholders:
+   *   t("members.inviteSent", { email })  →  "邀请已发送至 dad@family.com"
+   */
+  t: (key: keyof typeof translations.zh, params?: TranslationParams) => string;
+  /**
+   * Pick between two already-localised values coming from data (e.g. API rows that
+   * carry `title` and `titleEn`). Prefer `t()` for static UI copy.
+   */
+  l: <T,>(zh: T, en: T) => T;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -41,16 +52,22 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const t = (key: keyof typeof translations.zh): string => {
-    return translations[language][key] || translations.zh[key] || key;
+  const t = (key: keyof typeof translations.zh, params?: TranslationParams): string => {
+    const raw = translations[language][key] || translations.zh[key] || key;
+    if (!params) return raw;
+    return raw.replace(/\{\{(\w+)\}\}/g, (_, name: string) =>
+      params[name] === undefined ? `{{${name}}}` : String(params[name]),
+    );
   };
+
+  const l = <T,>(zh: T, en: T): T => (language === 'zh' ? zh : en);
 
   if (isLoading) {
     return null;
   }
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, l }}>
       {children}
     </LanguageContext.Provider>
   );

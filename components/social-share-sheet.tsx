@@ -1,8 +1,10 @@
 import { View, Text, Pressable, ScrollView, Image } from "react-native";
 import { useState } from "react";
 import { useColors } from "@/hooks/use-colors";
+import { useToast } from "@/components/toast";
 import { useLanguage } from "@/lib/language-provider";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { GradientCard } from "@/components/gradient-card";
 import { useSocialShare } from "@/hooks/use-social-share";
 import { ShareCard } from "@/lib/social-share-manager";
 
@@ -13,7 +15,8 @@ interface SocialShareSheetProps {
 
 export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
   const colors = useColors();
-  const { language } = useLanguage();
+  const toast = useToast();
+  const { t, language } = useLanguage();
   const { shareToWeChat, shareToFacebook, shareToInstagram, generateQRCode, copyShareLink } =
     useSocialShare();
   const [loading, setLoading] = useState(false);
@@ -34,13 +37,11 @@ export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
           await shareToInstagram(card);
           break;
       }
-      alert(
-        language === "zh"
-          ? `已分享到${platform === "wechat" ? "微信" : platform === "facebook" ? "Facebook" : "Instagram"}`
-          : `Shared to ${platform}`
-      );
+      const platformLabel =
+        platform === "wechat" ? t("common.wechat") : platform === "facebook" ? "Facebook" : "Instagram";
+      toast.success(t("socialShareSheet.sharedTo", { platform: platformLabel }));
     } catch (error) {
-      alert(language === "zh" ? "分享失败，请重试" : "Failed to share, please try again");
+      toast.error(t("socialShareSheet.failedToSharePlease"));
     } finally {
       setLoading(false);
     }
@@ -53,7 +54,7 @@ export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
       setQrCode(qr);
       setShowQRCode(true);
     } catch (error) {
-      alert(language === "zh" ? "生成二维码失败" : "Failed to generate QR code");
+      toast.error(t("socialShareSheet.failedToGenerateQr"));
     } finally {
       setLoading(false);
     }
@@ -63,9 +64,9 @@ export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
     setLoading(true);
     try {
       await copyShareLink(card.url);
-      alert(language === "zh" ? "链接已复制到剪贴板" : "Link copied to clipboard");
+      toast.success(t("socialShareSheet.linkCopiedToClipboard"));
     } catch (error) {
-      alert(language === "zh" ? "复制失败，请重试" : "Failed to copy, please try again");
+      toast.error(t("socialShareSheet.failedToCopyPlease"));
     } finally {
       setLoading(false);
     }
@@ -77,10 +78,10 @@ export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
         {/* 标题 */}
         <View className="gap-2 mb-6">
           <Text className="text-2xl font-bold text-foreground">
-            {language === "zh" ? "分享到社交媒体" : "Share to Social Media"}
+            {t("common.shareToSocialMedia")}
           </Text>
           <Text className="text-sm text-muted">
-            {language === "zh" ? "选择您想要分享的平台" : "Choose a platform to share"}
+            {t("socialShareSheet.chooseAPlatformTo")}
           </Text>
         </View>
 
@@ -115,10 +116,10 @@ export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
             </View>
             <View className="flex-1">
               <Text className="text-base font-semibold text-foreground">
-                {language === "zh" ? "微信" : "WeChat"}
+                {t("socialShareSheet.wechat")}
               </Text>
               <Text className="text-xs text-muted">
-                {language === "zh" ? "分享给微信好友或群组" : "Share with WeChat friends"}
+                {t("socialShareSheet.shareWithWechatFriends")}
               </Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color={colors.muted} />
@@ -138,7 +139,7 @@ export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
             <View className="flex-1">
               <Text className="text-base font-semibold text-foreground">Facebook</Text>
               <Text className="text-xs text-muted">
-                {language === "zh" ? "分享到Facebook" : "Share to Facebook"}
+                {t("socialShareSheet.shareToFacebook")}
               </Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color={colors.muted} />
@@ -152,13 +153,13 @@ export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
               loading ? "opacity-50" : ""
             }`}
           >
-            <View className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 items-center justify-center">
+            <GradientCard variant="accentToPink" direction="horizontal" className="w-12 h-12 rounded-full items-center justify-center">
               <MaterialIcons name="photo-camera" size={24} color="white" />
-            </View>
+            </GradientCard>
             <View className="flex-1">
               <Text className="text-base font-semibold text-foreground">Instagram</Text>
               <Text className="text-xs text-muted">
-                {language === "zh" ? "分享到Instagram" : "Share to Instagram"}
+                {t("socialShareSheet.shareToInstagram")}
               </Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color={colors.muted} />
@@ -180,10 +181,10 @@ export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
             </View>
             <View className="flex-1">
               <Text className="text-base font-semibold text-foreground">
-                {language === "zh" ? "生成二维码" : "Generate QR Code"}
+                {t("socialShareSheet.generateQrCode")}
               </Text>
               <Text className="text-xs text-muted">
-                {language === "zh" ? "生成分享链接的二维码" : "Generate QR code for sharing"}
+                {t("socialShareSheet.generateQrCodeFor")}
               </Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color={colors.muted} />
@@ -202,10 +203,10 @@ export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
             </View>
             <View className="flex-1">
               <Text className="text-base font-semibold text-foreground">
-                {language === "zh" ? "复制链接" : "Copy Link"}
+                {t("socialShareSheet.copyLink")}
               </Text>
               <Text className="text-xs text-muted">
-                {language === "zh" ? "复制分享链接到剪贴板" : "Copy sharing link to clipboard"}
+                {t("socialShareSheet.copySharingLinkTo")}
               </Text>
             </View>
             <MaterialIcons name="chevron-right" size={24} color={colors.muted} />
@@ -216,13 +217,11 @@ export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
         {showQRCode && qrCode && (
           <View className="bg-background rounded-xl p-4 mb-6 items-center gap-4">
             <Text className="text-base font-semibold text-foreground">
-              {language === "zh" ? "分享二维码" : "Share QR Code"}
+              {t("common.shareQrCode")}
             </Text>
             <Image source={{ uri: qrCode }} className="w-40 h-40 rounded-lg" />
             <Text className="text-xs text-muted text-center">
-              {language === "zh"
-                ? "扫描此二维码即可打开分享内容"
-                : "Scan this QR code to open the shared content"}
+              {t("socialShareSheet.scanThisQrCode")}
             </Text>
           </View>
         )}
@@ -233,7 +232,7 @@ export function SocialShareSheet({ card, onClose }: SocialShareSheetProps) {
           className="bg-muted/20 rounded-lg py-3 items-center mb-4"
         >
           <Text className="text-base font-semibold text-foreground">
-            {language === "zh" ? "关闭" : "Close"}
+            {t("close")}
           </Text>
         </Pressable>
       </ScrollView>

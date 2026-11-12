@@ -11,7 +11,7 @@ type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
 
 export function NotificationCenterUI() {
   const colors = useColors();
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   const {
     notifications,
     unreadCount,
@@ -72,7 +72,7 @@ export function NotificationCenterUI() {
             <MaterialIcons name="arrow-back" size={24} color={colors.foreground} />
           </Pressable>
           <Text className="text-lg font-bold text-foreground">
-            {language === "zh" ? "通知详情" : "Notification"}
+            {t("notificationCenter.notification")}
           </Text>
           <Pressable onPress={() => deleteNotification(selectedNotification.id)}>
             <MaterialIcons name="delete" size={24} color={colors.error} />
@@ -115,7 +115,7 @@ export function NotificationCenterUI() {
             {selectedNotification.relatedMediaId && (
               <View className="gap-2">
                 <Text className="text-sm font-semibold text-foreground">
-                  {language === "zh" ? "相关内容" : "Related Content"}
+                  {t("notificationCenter.relatedContent")}
                 </Text>
                 <View className="w-full h-40 rounded-lg bg-muted items-center justify-center">
                   <MaterialIcons name="image" size={48} color={colors.foreground} />
@@ -127,7 +127,7 @@ export function NotificationCenterUI() {
             {selectedNotification.actions && selectedNotification.actions.length > 0 && (
               <View className="gap-2">
                 <Text className="text-sm font-semibold text-foreground">
-                  {language === "zh" ? "快速操作" : "Quick Actions"}
+                  {t("common.quickActions")}
                 </Text>
                 <View className="gap-2">
                   {selectedNotification.actions.map(action => (
@@ -136,8 +136,8 @@ export function NotificationCenterUI() {
                       onPress={() => executeAction(selectedNotification.id, action.id)}
                       className="flex-row items-center justify-center gap-2 p-3 rounded-lg bg-primary active:opacity-80"
                     >
-                      <MaterialIcons name="check" size={20} color="white" />
-                      <Text className="text-white font-semibold">{action.label}</Text>
+                      <MaterialIcons name="check" size={20} color={colors.onPrimary} />
+                      <Text className="text-onPrimary font-semibold">{action.label}</Text>
                     </Pressable>
                   ))}
                 </View>
@@ -151,7 +151,7 @@ export function NotificationCenterUI() {
           <TextInput
             value={replyText}
             onChangeText={setReplyText}
-            placeholder={language === "zh" ? "输入回复..." : "Reply..."}
+            placeholder={t("notificationCenter.reply")}
             className="flex-1 border border-border rounded-lg px-4 py-3 text-foreground"
             placeholderTextColor={colors.muted}
           />
@@ -159,7 +159,7 @@ export function NotificationCenterUI() {
             onPress={handleReply}
             className="w-10 h-10 rounded-lg bg-primary items-center justify-center active:opacity-80"
           >
-            <MaterialIcons name="send" size={20} color="white" />
+            <MaterialIcons name="send" size={20} color={colors.onPrimary} />
           </Pressable>
         </View>
       </View>
@@ -190,28 +190,18 @@ export function NotificationCenterUI() {
                   }`}
                 >
                   {tab === "all"
-                    ? language === "zh"
-                      ? "全部"
-                      : "All"
+                    ? t("notificationCenter.all")
                     : tab === "unread"
-                      ? language === "zh"
-                        ? "未读"
-                        : "Unread"
+                      ? t("notificationCenter.unread")
                       : tab === "comment"
-                        ? language === "zh"
-                          ? "评论"
-                          : "Comments"
+                        ? t("common.comments")
                         : tab === "like"
-                          ? language === "zh"
-                            ? "点赞"
-                            : "Likes"
-                          : language === "zh"
-                            ? "分享"
-                            : "Shares"}
+                          ? t("notificationCenter.likes")
+                          : t("notificationCenter.shares")}
                 </Text>
                 {tab !== "all" && (
                   <View className="bg-primary rounded-full px-2 py-0.5">
-                    <Text className="text-xs text-white font-bold">
+                    <Text className="text-xs text-onPrimary font-bold">
                       {notificationGroups.find(g => g.type === tab)?.count || 0}
                     </Text>
                   </View>
@@ -227,7 +217,7 @@ export function NotificationCenterUI() {
         <View className="flex-1 items-center justify-center">
           <MaterialIcons name="notifications-none" size={48} color={colors.muted} />
           <Text className="text-muted mt-4">
-            {language === "zh" ? "没有通知" : "No notifications"}
+            {t("notificationCenter.noNotifications")}
           </Text>
         </View>
       ) : (

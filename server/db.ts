@@ -146,6 +146,26 @@ export async function addFamilyMember(data: InsertFamilyMember) {
   return await db.insert(familyMembers).values(data);
 }
 
+export async function updateFamilyMemberRole(familyId: number, userId: number, role: "admin" | "editor" | "viewer") {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(familyMembers)
+    .set({ role })
+    .where(and(eq(familyMembers.familyId, familyId), eq(familyMembers.userId, userId)));
+  return { success: true };
+}
+
+export async function removeFamilyMember(familyId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .delete(familyMembers)
+    .where(and(eq(familyMembers.familyId, familyId), eq(familyMembers.userId, userId)));
+}
+
 export async function getFamilyMembers(familyId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

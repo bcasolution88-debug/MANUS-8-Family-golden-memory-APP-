@@ -230,6 +230,8 @@ class SDKServer {
       }
     }
     if (!user) throw ForbiddenError("User not found");
+    // P13: an account folded into another one (undo window) cannot sign in.
+    if (user.mergedIntoUserId) throw ForbiddenError("This account was merged into another account");
     await db.upsertUser({ openId: user.openId, lastSignedIn: signedInAt });
     return user;
   }

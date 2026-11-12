@@ -3,40 +3,54 @@ import { useState } from "react";
 import { useRouter } from "expo-router";
 import { useLanguage } from "@/lib/language-provider";
 import { useColors } from "@/hooks/use-colors";
+import { useToast } from "@/components/toast";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ScreenContainer } from "@/components/screen-container";
+import { useAuth } from "@/hooks/use-auth";
+import * as Auth from "@/lib/_core/auth";
+import { trpc } from "@/lib/trpc";
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { t, language, setLanguage } = useLanguage();
+  const { t, l, language, setLanguage } = useLanguage();
   const colors = useColors();
+  const toast = useToast();
+  const { refresh } = useAuth({ autoFetch: false });
+  const utils = trpc.useUtils();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const handleRegister = async () => {
-    if (!email || !password || !confirmPassword) {
-      alert(t("error"));
+  // P8: real account creation (auth.register) — signs in immediately.
+  const register = trpc.auth.register.useMutation({
+    onSuccess: async ({ sessionToken, user }) => {
+      await Auth.setSessionToken(sessionToken);
+      await Auth.setUserInfo({ id: user.id, openId: user.openId, name: user.name, email: user.email, loginMethod: user.loginMethod, lastSignedIn: new Date() });
+      await Promise.all([utils.invalidate(), refresh()]);
+      toast.success(l("注册成功，欢迎加入金色韶华", "Account created — welcome to Golden Memory"));
+      router.replace("/(tabs)");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+  const loading = register.isPending;
+
+  const handleRegister = () => {
+    if (!name.trim() || !email.trim() || !password || !confirmPassword) {
+      toast.warning(t("register.pleaseFillInAll"));
+      return;
+    }
+    if (password.length < 8) {
+      toast.warning(l("密码至少 8 位", "Password must be at least 8 characters"));
       return;
     }
     if (password !== confirmPassword) {
-      alert(t("error"));
+      toast.warning(t("register.passwordsDoNotMatch"));
       return;
     }
-    setLoading(true);
-    try {
-      // TODO: 调用注册API
-      setTimeout(() => {
-        setLoading(false);
-        router.replace("/(tabs)");
-      }, 1000);
-    } catch (error) {
-      setLoading(false);
-      alert(t("error"));
-    }
+    register.mutate({ name: name.trim(), email: email.trim(), password });
   };
 
   return (
@@ -48,19 +62,19 @@ export default function RegisterScreen() {
         <View className="flex-1 justify-between py-6 px-6">
           {/* 顶部语言切换 */}
           <View className="flex-row justify-between items-center mb-4">
-            <Pressable onPress={() => router.back()} className="p-2">
+            <Pressable onPress={() => router.back()} className="p-2 min-w-[48px] min-h-[48px] items-center justify-center">
               <MaterialIcons name="arrow-back" size={24} color={colors.foreground} />
             </Pressable>
             <View className="flex-row gap-2">
               <Pressable
                 onPress={() => setLanguage("zh")}
                 className={`px-3 py-1 rounded-full ${
-                  language === "zh" ? "bg-primary" : "bg-surface"
+                  language === "en" ? "bg-primary" : "bg-surface"
                 }`}
               >
                 <Text
                   className={`text-sm font-semibold ${
-                    language === "zh" ? "text-white" : "text-foreground"
+                    language === "en" ? "text-white" : "text-foreground"
                   }`}
                 >
                   中文
@@ -105,6 +119,23 @@ export default function RegisterScreen() {
 
             {/* 表单 */}
             <View className="gap-4">
+              {/* 昵称（P8） */}
+              <View className="gap-2">
+                <Text className="text-sm font-semibold text-foreground">{t("me.name")}</Text>
+                <View className="flex-row items-center bg-surface rounded-2xl px-4 py-3 border border-border">
+                  <MaterialIcons name="person" size={20} color={colors.muted} />
+                  <TextInput
+                    placeholder={l("家人怎么称呼你", "What your family calls you")}
+                    value={name}
+                    onChangeText={setName}
+                    maxLength={100}
+                    autoCapitalize="words"
+                    placeholderTextColor={colors.muted}
+                    className="flex-1 ml-3 text-foreground"
+                  />
+                </View>
+              </View>
+
               {/* 邮箱输入框 */}
               <View className="gap-2">
                 <Text className="text-sm font-semibold text-foreground">
@@ -180,7 +211,7 @@ export default function RegisterScreen() {
               disabled={loading}
               className="bg-primary rounded-full py-4 items-center justify-center active:opacity-80"
             >
-              <Text className="text-white font-bold text-lg">
+              <Text className="text-onPrimary font-bold text-lg">
                 {loading ? t("loading") : t("register")}
               </Text>
             </Pressable>

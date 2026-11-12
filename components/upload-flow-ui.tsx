@@ -11,7 +11,7 @@ interface UploadFlowUIProps {
 
 export function UploadFlowUI({ onUploadComplete, onCancel }: UploadFlowUIProps) {
   const colors = useColors();
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   const [step, setStep] = useState<"select" | "edit" | "progress">("select");
   const [selectedMedia, setSelectedMedia] = useState<any[]>([]);
   const [title, setTitle] = useState("");
@@ -83,7 +83,7 @@ export function UploadFlowUI({ onUploadComplete, onCancel }: UploadFlowUIProps) 
         {step === "select" && (
           <View className="gap-6">
             <Text className="text-lg font-bold text-foreground">
-              {language === "zh" ? "选择媒体文件" : "Select Media"}
+              {t("uploadFlow.selectMedia")}
             </Text>
 
             <Pressable
@@ -92,21 +92,19 @@ export function UploadFlowUI({ onUploadComplete, onCancel }: UploadFlowUIProps) 
             >
               <MaterialIcons name="cloud-upload" size={48} color={colors.primary} />
               <Text className="text-primary font-semibold mt-4">
-                {language === "zh" ? "点击选择照片或视频" : "Tap to select photos or videos"}
+                {t("uploadFlow.tapToSelectPhotos")}
               </Text>
               <Text className="text-muted text-sm mt-2">
-                {language === "zh" ? "支持 JPG, PNG, MP4 格式" : "Supports JPG, PNG, MP4 formats"}
+                {t("uploadFlow.supportsJpgPngMp4")}
               </Text>
             </Pressable>
 
             <View className="gap-2">
               <Text className="text-sm font-semibold text-muted">
-                {language === "zh" ? "提示" : "Tips"}
+                {t("uploadFlow.tips")}
               </Text>
               <Text className="text-xs text-muted leading-relaxed">
-                {language === "zh"
-                  ? "• 单次最多上传 10 个文件\n• 单个文件大小不超过 500MB\n• 建议使用 WiFi 网络上传"
-                  : "• Max 10 files per upload\n• Max 500MB per file\n• WiFi recommended"}
+                {t("uploadFlow.max10FilesPer")}
               </Text>
             </View>
           </View>
@@ -115,13 +113,13 @@ export function UploadFlowUI({ onUploadComplete, onCancel }: UploadFlowUIProps) 
         {step === "edit" && (
           <View className="gap-6">
             <Text className="text-lg font-bold text-foreground">
-              {language === "zh" ? "编辑媒体信息" : "Edit Media Info"}
+              {t("uploadFlow.editMediaInfo")}
             </Text>
 
             {/* 已选媒体预览 */}
             <View className="gap-2">
               <Text className="text-sm font-semibold text-foreground">
-                {language === "zh" ? "已选择文件" : "Selected Files"}
+                {t("uploadFlow.selectedFiles")}
               </Text>
               {selectedMedia.map(media => (
                 <View
@@ -146,12 +144,12 @@ export function UploadFlowUI({ onUploadComplete, onCancel }: UploadFlowUIProps) 
             {/* 标题 */}
             <View className="gap-2">
               <Text className="text-sm font-semibold text-foreground">
-                {language === "zh" ? "标题" : "Title"}
+                {t("title")}
               </Text>
               <TextInput
                 value={title}
                 onChangeText={setTitle}
-                placeholder={language === "zh" ? "输入标题（可选）" : "Enter title (optional)"}
+                placeholder={t("uploadFlow.enterTitleOptional")}
                 className="border border-border rounded-lg px-4 py-3 text-foreground"
                 placeholderTextColor={colors.muted}
               />
@@ -160,12 +158,12 @@ export function UploadFlowUI({ onUploadComplete, onCancel }: UploadFlowUIProps) 
             {/* 描述 */}
             <View className="gap-2">
               <Text className="text-sm font-semibold text-foreground">
-                {language === "zh" ? "描述" : "Description"}
+                {t("description")}
               </Text>
               <TextInput
                 value={description}
                 onChangeText={setDescription}
-                placeholder={language === "zh" ? "输入描述（可选）" : "Enter description (optional)"}
+                placeholder={t("common.enterDescriptionOptional")}
                 multiline
                 numberOfLines={4}
                 className="border border-border rounded-lg px-4 py-3 text-foreground"
@@ -176,7 +174,7 @@ export function UploadFlowUI({ onUploadComplete, onCancel }: UploadFlowUIProps) 
             {/* 标签 */}
             <View className="gap-2">
               <Text className="text-sm font-semibold text-foreground">
-                {language === "zh" ? "分类标签" : "Tags"}
+                {t("uploadFlow.tags")}
               </Text>
               <View className="flex-row flex-wrap gap-2">
                 {availableTags.map(tag => (
@@ -219,7 +217,7 @@ export function UploadFlowUI({ onUploadComplete, onCancel }: UploadFlowUIProps) 
                 />
               </View>
               <Text className="text-center text-sm text-muted">
-                {language === "zh" ? "上传中..." : "Uploading..."}
+                {t("uploading")}
               </Text>
             </View>
 
@@ -227,7 +225,7 @@ export function UploadFlowUI({ onUploadComplete, onCancel }: UploadFlowUIProps) 
               <View className="gap-2 items-center">
                 <MaterialIcons name="check-circle" size={48} color={colors.primary} />
                 <Text className="text-lg font-bold text-foreground">
-                  {language === "zh" ? "上传完成！" : "Upload Complete!"}
+                  {t("uploadFlow.uploadComplete")}
                 </Text>
               </View>
             )}
@@ -242,7 +240,7 @@ export function UploadFlowUI({ onUploadComplete, onCancel }: UploadFlowUIProps) 
           className="flex-1 border border-border rounded-lg py-3 items-center active:opacity-80"
         >
           <Text className="text-foreground font-semibold">
-            {language === "zh" ? "取消" : "Cancel"}
+            {t("cancel")}
           </Text>
         </Pressable>
 
@@ -257,14 +255,10 @@ export function UploadFlowUI({ onUploadComplete, onCancel }: UploadFlowUIProps) 
             }}
             className="flex-1 bg-primary rounded-lg py-3 items-center active:opacity-80"
           >
-            <Text className="text-white font-semibold">
+            <Text className="text-onPrimary font-semibold">
               {step === "select"
-                ? language === "zh"
-                  ? "下一步"
-                  : "Next"
-                : language === "zh"
-                  ? "开始上传"
-                  : "Upload"}
+                ? t("next")
+                : t("uploadFlow.upload")}
             </Text>
           </Pressable>
         )}

@@ -6,14 +6,18 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { Platform, View, Text } from "react-native";
 import { useColors } from "@/hooks/use-colors";
 import { useUnreadCount } from "@/hooks/use-unread-count";
+import { useElderMode } from "@/lib/elder-mode-provider";
 
 export default function TabLayout() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const unreadCount = useUnreadCount();
+  const { simplified, scaled } = useElderMode();
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
-  const tabBarHeight = 56 + bottomPadding;
+  // Elder mode: taller bar + larger icons/labels so each tab stays >= 48dp tall.
+  const tabBarHeight = scaled(56) + bottomPadding;
+  const iconSize = scaled(28);
 
   return (
     <Tabs
@@ -29,15 +33,16 @@ export default function TabLayout() {
           borderTopColor: colors.border,
           borderTopWidth: 0.5,
         },
+        tabBarLabelStyle: { fontSize: scaled(10), fontWeight: simplified ? "700" : "500" },
       }}
     >
       {/* 首页 */}
       <Tabs.Screen
         name="index"
         options={{
-          title: language === "zh" ? "首页" : "Home",
+          title: t("home"),
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="house.fill" color={color} />
+            <IconSymbol size={iconSize} name="house.fill" color={color} />
           ),
         }}
       />
@@ -46,20 +51,22 @@ export default function TabLayout() {
       <Tabs.Screen
         name="album"
         options={{
-          title: language === "zh" ? "相册" : "Album",
+          title: t("album"),
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="photo.fill" color={color} />
+            <IconSymbol size={iconSize} name="photo.fill" color={color} />
           ),
         }}
       />
 
       {/* 时间线 */}
+      {/* 长辈模式（simplified）下隐藏时间线，只保留 首页 / 相册 / 消息 / 我的 */}
       <Tabs.Screen
         name="timeline"
         options={{
-          title: language === "zh" ? "时间线" : "Timeline",
+          title: t("common.timeline"),
+          href: simplified ? null : undefined,
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="calendar" color={color} />
+            <IconSymbol size={iconSize} name="calendar" color={color} />
           ),
         }}
       />
@@ -68,10 +75,10 @@ export default function TabLayout() {
       <Tabs.Screen
         name="messages"
         options={{
-          title: language === "zh" ? "消息" : "Messages",
+          title: t("messages"),
           tabBarIcon: ({ color }) => (
             <View>
-              <IconSymbol size={28} name="envelope.fill" color={color} />
+              <IconSymbol size={iconSize} name="envelope.fill" color={color} />
               {unreadCount.total > 0 && (
                 <View className="absolute -top-1 -right-1 bg-error rounded-full w-5 h-5 items-center justify-center">
                   <Text className="text-white text-xs font-bold">
@@ -88,9 +95,9 @@ export default function TabLayout() {
       <Tabs.Screen
         name="me"
         options={{
-          title: language === "zh" ? "我的" : "Me",
+          title: t("me"),
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={28} name="person.fill" color={color} />
+            <IconSymbol size={iconSize} name="person.fill" color={color} />
           ),
         }}
       />

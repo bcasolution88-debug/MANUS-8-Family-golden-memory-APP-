@@ -1,113 +1,55 @@
-import { useCallback, useState, useEffect } from "react";
-import { completeUploadManager, UploadTask, UploadProgress } from "@/lib/complete-upload-manager";
+import { useCallback, useEffect, useState } from "react";
 
+import {
+  completeUploadManager,
+  type UploadProgress,
+  type UploadSource,
+  type UploadTarget,
+  type UploadTask,
+} from "@/lib/complete-upload-manager";
+
+/**
+ * React binding for the upload manager (P4: real initUpload → PUT → completeUpload).
+ * Subscribes to manager events instead of polling.
+ */
 export function useCompleteUpload() {
-  const [uploadTasks, setUploadTasks] = useState<UploadTask[]>(
-    completeUploadManager.getAllUploadTasks()
-  );
-  const [activeUploads, setActiveUploads] = useState<UploadTask[]>(
-    completeUploadManager.getActiveUploads()
-  );
+  const [uploadTasks, setUploadTasks] = useState<UploadTask[]>(completeUploadManager.getAllUploadTasks());
+  const [activeUploads, setActiveUploads] = useState<UploadTask[]>(completeUploadManager.getActiveUploads());
   const [stats, setStats] = useState(completeUploadManager.getStats());
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const sync = () => {
       setUploadTasks(completeUploadManager.getAllUploadTasks());
       setActiveUploads(completeUploadManager.getActiveUploads());
       setStats(completeUploadManager.getStats());
-    }, 500);
-
-    return () => clearInterval(interval);
+    };
+    return completeUploadManager.subscribe(sync);
   }, []);
 
   const createUploadTask = useCallback(
-    (
-      mediaId: string,
-      filename: string,
-      mediaType: "photo" | "video",
-      fileSize: number,
-      metadata?: Record<string, any>
-    ) => {
-      const task = completeUploadManager.createUploadTask(
-        mediaId,
-        filename,
-        mediaType,
-        fileSize,
-        metadata
-      );
-      setUploadTasks(completeUploadManager.getAllUploadTasks());
-      return task;
-    },
-    []
+    (source: UploadSource, target: UploadTarget) => completeUploadManager.createUploadTask(source, target),
+    [],
   );
 
   const startUpload = useCallback(
-    async (
-      taskId: string,
-      fileData: ArrayBuffer,
-      onProgress?: (progress: UploadProgress) => void
-    ) => {
-      try {
-        const task = await completeUploadManager.startUpload(taskId, fileData, onProgress);
-        setUploadTasks(completeUploadManager.getAllUploadTasks());
-        setActiveUploads(completeUploadManager.getActiveUploads());
-        setStats(completeUploadManager.getStats());
-        return task;
-      } catch (error) {
-        console.error("Upload failed:", error);
-        throw error;
-      }
-    },
-    []
+    (taskId: string, onProgress?: (p: UploadProgress) => void) => completeUploadManager.startUpload(taskId, onProgress),
+    [],
   );
 
-  const pauseUpload = useCallback((taskId: string) => {
-    completeUploadManager.pauseUpload(taskId);
-    setUploadTasks(completeUploadManager.getAllUploadTasks());
-    setActiveUploads(completeUploadManager.getActiveUploads());
-  }, []);
-
-  const resumeUpload = useCallback(
-    async (
-      taskId: string,
-      fileData: ArrayBuffer,
-      onProgress?: (progress: UploadProgress) => void
-    ) => {
-      try {
-        const task = await completeUploadManager.resumeUpload(taskId, fileData, onProgress);
-        setUploadTasks(completeUploadManager.getAllUploadTasks());
-        setActiveUploads(completeUploadManager.getActiveUploads());
-        return task;
-      } catch (error) {
-        console.error("Resume failed:", error);
-        throw error;
-      }
-    },
-    []
+  /** Create + start. */
+  const upload = useCallback(
+    (source: UploadSource, target: UploadTarget, onProgress?: (p: UploadProgress) => void) =>
+      completeUploadManager.upload(source, target, onProgress),
+    [],
   );
 
-  const cancelUpload = useCallback((taskId: string) => {
-    completeUploadManager.cancelUpload(taskId);
-    setUploadTasks(completeUploadManager.getAllUploadTasks());
-    setActiveUploads(completeUploadManager.getActiveUploads());
-    setStats(completeUploadManager.getStats());
-  }, []);
+  const retry = useCallback(
+    (taskId: string, onProgress?: (p: UploadProgress) => void) => completeUploadManager.retry(taskId, onProgress),
+    [],
+  );
 
-  const clearCompleted = useCallback(() => {
-    completeUploadManager.clearCompleted();
-    setUploadTasks(completeUploadManager.getAllUploadTasks());
-    setStats(completeUploadManager.getStats());
-  }, []);
+  const cancelUpload = useCallback((taskId: string) => completeUploadManager.cancelUpload(taskId), []);
+  const clearCompleted = useCallback(() => completeUploadManager.clearCompleted(), []);
 
-  return {
-    uploadTasks,
-    activeUploads,
-    stats,
-    createUploadTask,
-    startUpload,
-    pauseUpload,
-    resumeUpload,
-    cancelUpload,
-    clearCompleted,
-  };
+  return { uploadTasks, activeUploads, stats, createUploadTask, startUpload, upload, retry, cancelUpload, clearCompleted };
 }
