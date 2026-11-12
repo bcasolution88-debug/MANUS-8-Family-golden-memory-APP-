@@ -35,12 +35,25 @@ export async function requireFamilyMember(userId: number, familyId: number) {
   return rows[0];
 }
 
+/** owner and admin can manage members / content. */
 export async function requireFamilyAdmin(userId: number, familyId: number) {
   const member = await requireFamilyMember(userId, familyId);
-  if (member.role !== "admin") {
+  if (member.role !== "owner" && member.role !== "admin") {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Family administrator permission required",
+    });
+  }
+  return member;
+}
+
+/** owner / admin / editor can create content; viewer is read-only. */
+export async function requireFamilyEditor(userId: number, familyId: number) {
+  const member = await requireFamilyMember(userId, familyId);
+  if (member.role === "viewer") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Viewers cannot create or modify content",
     });
   }
   return member;

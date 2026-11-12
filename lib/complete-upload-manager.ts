@@ -1,24 +1,106 @@
 /**
- * 完整的媒体上传流程管理
- * 集成媒体选择、S3上传、进度显示、缩略图生成
+ * Media upload pipeline (P4 — real implementation).
+ *
+ *   media.initUpload   → { uploadId, storageKey, presignedUrl }
+ *   HTTP PUT           → direct to private S3 (XHR for progress events)
+ *   media.completeUpload → INSERT media{storageKey, url:/manus-storage/{key}}
+ *
+ * Objects live under owner-prefixed keys (see server/storage.ts) and the
+ * server re-derives the key on completion, so a client cannot register an
+ * object outside its own album. Progress, retries and concurrency are kept
+ * client-side; nothing here is simulated anymore.
  */
+import { Platform } from "react-native";
+import { trpcClient } from "@/lib/trpc-client";
+
+/** Thumbnail target: 400px on the long edge, JPEG q0.7 — ~30–60 KB. */
+export const THUMBNAIL_SIZE = 400;
+const THUMBNAIL_QUALITY = 0.7;
+
+/**
+ * P5: generate a JPEG thumbnail for an image or video on-device.
+ * Returns null when generation isn't possible (web video, unsupported file),
+ * in which case the server falls back to the original as thumbnail.
+ */
+export async function generateThumbnail(
+  uri: string,
+  mediaType: "photo" | "video",
+  duration?: number,
+): Promise<{ uri: string; blob: Blob } | null> {
+  try {
+    let thumbUri: string | null = null;
+    if (mediaType === "photo") {
+      const { manipulateAsync, SaveFormat } = await import("expo-image-manipulator");
+      const result = await manipulateAsync(uri, [{ resize: { width: THUMBNAIL_SIZE } }], {
+        compress: THUMBNAIL_QUALITY,
+        format: SaveFormat.JPEG,
+      });
+      thumbUri = result.uri;
+    } else if (Platform.OS !== "web") {
+      const { getThumbnailAsync } = await import("expo-video-thumbnails");
+      // Grab a frame ~1s in (or the midpoint for very short clips).
+      const timeMs = duration && duration < 2 ? Math.round((duration * 1000) / 2) : 1000;
+      const result = await getThumbnailAsync(uri, { time: timeMs, quality: THUMBNAIL_QUALITY });
+      const { manipulateAsync, SaveFormat } = await import("expo-image-manipulator");
+      const resized = await manipulateAsync(result.uri, [{ resize: { width: THUMBNAIL_SIZE } }], {
+        compress: THUMBNAIL_QUALITY,
+        format: SaveFormat.JPEG,
+      });
+      thumbUri = resized.uri;
+    }
+    if (!thumbUri) return null;
+    const blob = await (await fetch(thumbUri)).blob();
+    return { uri: thumbUri, blob };
+  } catch (error) {
+    console.warn("[upload] thumbnail generation failed, server will fall back", error);
+    return null;
+  }
+}
+
+export type UploadStatus = "pending" | "uploading" | "processing" | "completed" | "failed" | "cancelled";
+
+export interface UploadSource {
+  /** Local file URI (expo-image-picker asset.uri) or a Blob (web). */
+  uri?: string;
+  blob?: Blob;
+  fileName: string;
+  mimeType?: string;
+  fileSize?: number;
+  /** Video duration in seconds, if known. */
+  duration?: number;
+}
+
+export interface UploadTarget {
+  albumId: number;
+  familyId: number;
+  title?: string;
+  description?: string;
+}
 
 export interface UploadTask {
   id: string;
-  mediaId: string;
+  /** Server media id once completeUpload succeeds. */
+  mediaId?: number;
   filename: string;
   mediaType: "photo" | "video";
   fileSize: number;
-  status: "pending" | "uploading" | "processing" | "completed" | "failed";
+  status: UploadStatus;
   progress: number;
   uploadedSize: number;
+  /** Private object key returned by initUpload. */
+  storageKey?: string;
+  /** Private key of the client-generated thumbnail (P5), if one was uploaded. */
+  thumbnailKey?: string;
+  uploadId?: string;
+  /** Access-controlled proxy path (`/manus-storage/{key}`) after completion. */
+  url?: string;
   thumbnailUrl?: string;
-  s3Url?: string;
-  metadata?: Record<string, any>;
   error?: string;
   startTime: number;
   endTime?: number;
   retryCount: number;
+  source: UploadSource;
+  target: UploadTarget;
 }
 
 export interface UploadProgress {
@@ -28,305 +110,292 @@ export interface UploadProgress {
   totalSize: number;
   speed: number; // bytes per second
   estimatedTime: number; // seconds
-  status: string;
+  status: UploadStatus;
 }
 
-export interface ThumbnailOptions {
-  width: number;
-  height: number;
-  quality: number;
-}
+type Listener = () => void;
+
+const isVideo = (mime: string | undefined, name: string) =>
+  (mime?.startsWith("video/") ?? false) || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(name);
+
+const guessMime = (name: string, fallback?: string) => {
+  if (fallback) return fallback;
+  const ext = name.split(".").pop()?.toLowerCase();
+  const map: Record<string, string> = {
+    jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", heic: "image/heic", webp: "image/webp", gif: "image/gif",
+    mp4: "video/mp4", mov: "video/quicktime", m4v: "video/mp4", webm: "video/webm",
+  };
+  return (ext && map[ext]) || "application/octet-stream";
+};
 
 class CompleteUploadManager {
-  private uploadTasks: Map<string, UploadTask> = new Map();
-  private activeUploads: Set<string> = new Set();
-  private maxConcurrentUploads = 3;
-  private uploadQueue: string[] = [];
-  private s3Endpoint = "https://s3.amazonaws.com"; // 模拟S3端点
-  private thumbnailCache: Map<string, string> = new Map();
+  private tasks = new Map<string, UploadTask>();
+  private active = new Set<string>();
+  private queue: string[] = [];
+  private xhrs = new Map<string, XMLHttpRequest>();
+  private listeners = new Set<Listener>();
+  maxConcurrentUploads = 3;
+  maxRetries = 3;
 
-  /**
-   * 创建上传任务
-   */
-  createUploadTask(
-    mediaId: string,
-    filename: string,
-    mediaType: "photo" | "video",
-    fileSize: number,
-    metadata?: Record<string, any>
-  ): UploadTask {
+  /* ------------------------------ events ------------------------------ */
+
+  subscribe(listener: Listener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+  private emit() {
+    for (const l of this.listeners) l();
+  }
+
+  /* ------------------------------ tasks ------------------------------- */
+
+  createUploadTask(source: UploadSource, target: UploadTarget): UploadTask {
     const task: UploadTask = {
-      id: `upload_${Date.now()}`,
-      mediaId,
-      filename,
-      mediaType,
-      fileSize,
+      id: `upload_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      filename: source.fileName,
+      mediaType: isVideo(source.mimeType, source.fileName) ? "video" : "photo",
+      fileSize: source.fileSize ?? 0,
       status: "pending",
       progress: 0,
       uploadedSize: 0,
-      metadata,
       startTime: Date.now(),
       retryCount: 0,
+      source,
+      target,
     };
-
-    this.uploadTasks.set(task.id, task);
-    this.uploadQueue.push(task.id);
-
-    console.log(`Upload task created: ${task.id}`);
+    this.tasks.set(task.id, task);
+    this.queue.push(task.id);
+    this.emit();
     return task;
   }
 
-  /**
-   * 开始上传
-   */
-  async startUpload(
-    taskId: string,
-    fileData: ArrayBuffer,
-    onProgress?: (progress: UploadProgress) => void
-  ): Promise<UploadTask> {
-    const task = this.uploadTasks.get(taskId);
-    if (!task) {
-      throw new Error(`Upload task not found: ${taskId}`);
-    }
+  /** Create + start in one call. Resolves with the completed task. */
+  async upload(source: UploadSource, target: UploadTarget, onProgress?: (p: UploadProgress) => void) {
+    const task = this.createUploadTask(source, target);
+    return this.startUpload(task.id, onProgress);
+  }
 
-    // 等待队列
-    while (this.activeUploads.size >= this.maxConcurrentUploads) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
+  async startUpload(taskId: string, onProgress?: (p: UploadProgress) => void): Promise<UploadTask> {
+    const task = this.tasks.get(taskId);
+    if (!task) throw new Error(`Upload task not found: ${taskId}`);
 
-    this.activeUploads.add(taskId);
+    // Simple concurrency gate.
+    while (this.active.size >= this.maxConcurrentUploads) {
+      await new Promise((r) => setTimeout(r, 150));
+      if (!this.tasks.has(taskId)) throw new Error("Upload cancelled");
+    }
+    this.active.add(taskId);
+    this.queue = this.queue.filter((id) => id !== taskId);
     task.status = "uploading";
     task.startTime = Date.now();
+    task.error = undefined;
+    this.emit();
 
     try {
-      // 模拟分块上传
-      const chunkSize = 1024 * 1024; // 1MB chunks
-      const chunks = Math.ceil(task.fileSize / chunkSize);
+      // 1. Materialize the file as a Blob (works for file:// on native and blob:/http on web).
+      const blob = task.source.blob ?? (await (await fetch(task.source.uri!)).blob());
+      const contentType = guessMime(task.filename, task.source.mimeType || blob.type || undefined);
+      task.fileSize = blob.size || task.fileSize;
 
-      for (let i = 0; i < chunks; i++) {
-        // 模拟上传延迟
-        await new Promise(resolve => setTimeout(resolve, 100));
+      // 2. Presign under an owner-prefixed key.
+      const init = await trpcClient.media.initUpload.mutate({
+        fileName: task.filename,
+        fileSize: Math.max(1, task.fileSize),
+        fileType: task.mediaType === "video" ? "video" : "image",
+        albumId: task.target.albumId,
+        contentType,
+      });
+      task.uploadId = init.uploadId;
+      task.storageKey = init.storageKey;
+      this.emit();
 
-        const uploadedSize = Math.min((i + 1) * chunkSize, task.fileSize);
-        task.uploadedSize = uploadedSize;
-        task.progress = Math.round((uploadedSize / task.fileSize) * 100);
+      // 3. PUT directly to storage with progress.
+      await this.putWithProgress(task, init.presignedUrl, blob, contentType, onProgress);
 
-        if (onProgress) {
-          const elapsed = (Date.now() - task.startTime) / 1000;
-          const speed = uploadedSize / elapsed;
-          const remaining = task.fileSize - uploadedSize;
-          const estimatedTime = remaining / speed;
-
-          onProgress({
-            taskId,
-            progress: task.progress,
-            uploadedSize,
-            totalSize: task.fileSize,
-            speed,
-            estimatedTime,
-            status: "uploading",
-          });
+      // 3b. P5: generate + upload a thumbnail (best effort, never fails the upload).
+      task.status = "processing";
+      this.emit();
+      let thumbnailKey: string | undefined;
+      if (task.source.uri) {
+        const thumb = await generateThumbnail(task.source.uri, task.mediaType, task.source.duration);
+        if (thumb && !init.thumbnailPresignedUrl.startsWith("/")) {
+          try {
+            const put = await fetch(init.thumbnailPresignedUrl, {
+              method: "PUT",
+              headers: { "Content-Type": "image/jpeg" },
+              body: thumb.blob,
+            });
+            if (put.ok) thumbnailKey = init.thumbnailKey;
+          } catch (error) {
+            console.warn("[upload] thumbnail PUT failed", error);
+          }
+        } else if (thumb) {
+          // Dev fallback (storage unconfigured): record the key without a PUT.
+          thumbnailKey = init.thumbnailKey;
         }
       }
+      task.thumbnailKey = thumbnailKey;
 
-      // 生成S3 URL
-      task.s3Url = `${this.s3Endpoint}/uploads/${task.mediaId}/${task.filename}`;
+      // 4. Register the object.
+      const media = await trpcClient.media.completeUpload.mutate({
+        uploadId: init.uploadId,
+        fileName: task.filename,
+        fileSize: Math.max(1, task.fileSize),
+        fileType: task.mediaType === "video" ? "video" : "image",
+        albumId: task.target.albumId,
+        familyId: task.target.familyId,
+        storageKey: init.storageKey,
+        thumbnailKey,
+        duration: task.source.duration ? Math.round(task.source.duration) : undefined,
+        title: task.target.title,
+        description: task.target.description,
+      });
 
-      // 生成缩略图
-      if (task.mediaType === "photo") {
-        task.status = "processing";
-        task.thumbnailUrl = await this.generateThumbnail(
-          task.mediaId,
-          fileData,
-          { width: 200, height: 200, quality: 80 }
-        );
-      }
-
+      task.mediaId = media.id;
+      task.url = media.url;
+      task.thumbnailUrl = media.thumbnail ?? media.url;
       task.status = "completed";
+      task.progress = 100;
+      task.uploadedSize = task.fileSize;
       task.endTime = Date.now();
-
-      console.log(`Upload completed: ${taskId}`);
+      onProgress?.(this.progressOf(task));
       return task;
     } catch (error) {
-      task.status = "failed";
-      task.error = String(error);
-      task.retryCount++;
-
-      console.error(`Upload failed: ${taskId}`, error);
+      // Re-read via the map: cancelUpload() may have mutated status concurrently.
+      const current = this.tasks.get(taskId)?.status as UploadStatus | undefined;
+      if (current && current !== "cancelled") {
+        task.status = "failed";
+        task.error = error instanceof Error ? error.message : String(error);
+        task.retryCount += 1;
+      }
       throw error;
     } finally {
-      this.activeUploads.delete(taskId);
+      this.active.delete(taskId);
+      this.xhrs.delete(taskId);
+      this.emit();
     }
   }
 
-  /**
-   * 生成缩略图
-   */
-  async generateThumbnail(
-    mediaId: string,
-    fileData: ArrayBuffer,
-    options: ThumbnailOptions = { width: 200, height: 200, quality: 80 }
-  ): Promise<string> {
-    const cacheKey = `${mediaId}_${options.width}x${options.height}`;
-
-    if (this.thumbnailCache.has(cacheKey)) {
-      return this.thumbnailCache.get(cacheKey)!;
+  private putWithProgress(
+    task: UploadTask,
+    url: string,
+    blob: Blob,
+    contentType: string,
+    onProgress?: (p: UploadProgress) => void,
+  ): Promise<void> {
+    // Dev fallback: when storage isn't configured the server hands back the
+    // proxy path instead of a presigned URL. Skip the PUT so the flow still
+    // completes end-to-end locally.
+    if (url.startsWith("/")) {
+      task.progress = 100;
+      task.uploadedSize = task.fileSize;
+      onProgress?.(this.progressOf(task));
+      return Promise.resolve();
     }
-
-    try {
-      // 模拟缩略图生成
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const thumbnailUrl = `${this.s3Endpoint}/thumbnails/${mediaId}_${options.width}x${options.height}.jpg`;
-      this.thumbnailCache.set(cacheKey, thumbnailUrl);
-
-      console.log(`Thumbnail generated: ${thumbnailUrl}`);
-      return thumbnailUrl;
-    } catch (error) {
-      console.error("Failed to generate thumbnail:", error);
-      throw error;
-    }
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      this.xhrs.set(task.id, xhr);
+      xhr.open("PUT", url);
+      xhr.setRequestHeader("Content-Type", contentType);
+      xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        task.uploadedSize = e.loaded;
+        task.fileSize = e.total || task.fileSize;
+        task.progress = Math.min(99, Math.round((e.loaded / (e.total || 1)) * 100));
+        onProgress?.(this.progressOf(task));
+        this.emit();
+      };
+      xhr.onload = () =>
+        xhr.status >= 200 && xhr.status < 300
+          ? resolve()
+          : reject(new Error(`Storage PUT failed (${xhr.status})`));
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.onabort = () => reject(new Error("Upload cancelled"));
+      xhr.send(blob);
+    });
   }
 
-  /**
-   * 暂停上传
-   */
-  pauseUpload(taskId: string): void {
-    const task = this.uploadTasks.get(taskId);
-    if (task && task.status === "uploading") {
-      task.status = "pending";
-      this.activeUploads.delete(taskId);
-      console.log(`Upload paused: ${taskId}`);
-    }
-  }
-
-  /**
-   * 继续上传
-   */
-  async resumeUpload(
-    taskId: string,
-    fileData: ArrayBuffer,
-    onProgress?: (progress: UploadProgress) => void
-  ): Promise<UploadTask> {
-    const task = this.uploadTasks.get(taskId);
-    if (!task) {
-      throw new Error(`Upload task not found: ${taskId}`);
-    }
-
-    console.log(`Upload resumed: ${taskId}`);
-    return this.startUpload(taskId, fileData, onProgress);
-  }
-
-  /**
-   * 取消上传
-   */
-  cancelUpload(taskId: string): void {
-    const task = this.uploadTasks.get(taskId);
-    if (task) {
-      this.uploadTasks.delete(taskId);
-      this.activeUploads.delete(taskId);
-      const queueIndex = this.uploadQueue.indexOf(taskId);
-      if (queueIndex > -1) {
-        this.uploadQueue.splice(queueIndex, 1);
-      }
-      console.log(`Upload cancelled: ${taskId}`);
-    }
-  }
-
-  /**
-   * 获取上传任务
-   */
-  getUploadTask(taskId: string): UploadTask | undefined {
-    return this.uploadTasks.get(taskId);
-  }
-
-  /**
-   * 获取所有上传任务
-   */
-  getAllUploadTasks(): UploadTask[] {
-    return Array.from(this.uploadTasks.values());
-  }
-
-  /**
-   * 获取进行中的上传任务
-   */
-  getActiveUploads(): UploadTask[] {
-    return Array.from(this.activeUploads)
-      .map(id => this.uploadTasks.get(id))
-      .filter((task): task is UploadTask => !!task);
-  }
-
-  /**
-   * 获取上传统计
-   */
-  getStats(): {
-    total: number;
-    completed: number;
-    failed: number;
-    active: number;
-    queued: number;
-    totalSize: number;
-    uploadedSize: number;
-  } {
-    const tasks = Array.from(this.uploadTasks.values());
-
+  private progressOf(task: UploadTask): UploadProgress {
+    const elapsed = Math.max(0.001, (Date.now() - task.startTime) / 1000);
+    const speed = task.uploadedSize / elapsed;
+    const remaining = Math.max(0, task.fileSize - task.uploadedSize);
     return {
-      total: tasks.length,
-      completed: tasks.filter(t => t.status === "completed").length,
-      failed: tasks.filter(t => t.status === "failed").length,
-      active: this.activeUploads.size,
-      queued: this.uploadQueue.length,
-      totalSize: tasks.reduce((sum, t) => sum + t.fileSize, 0),
-      uploadedSize: tasks.reduce((sum, t) => sum + t.uploadedSize, 0),
+      taskId: task.id,
+      progress: task.progress,
+      uploadedSize: task.uploadedSize,
+      totalSize: task.fileSize,
+      speed,
+      estimatedTime: speed > 0 ? remaining / speed : 0,
+      status: task.status,
     };
   }
 
-  /**
-   * 清空完成的上传
-   */
-  clearCompleted(): void {
-    const completed = Array.from(this.uploadTasks.entries())
-      .filter(([_, task]) => task.status === "completed")
-      .map(([id]) => id);
+  /* ------------------------------ control ----------------------------- */
 
-    completed.forEach(id => this.uploadTasks.delete(id));
-    console.log(`Cleared ${completed.length} completed uploads`);
+  cancelUpload(taskId: string): void {
+    const task = this.tasks.get(taskId);
+    if (!task) return;
+    task.status = "cancelled";
+    this.xhrs.get(taskId)?.abort();
+    this.xhrs.delete(taskId);
+    this.active.delete(taskId);
+    this.queue = this.queue.filter((id) => id !== taskId);
+    this.tasks.delete(taskId);
+    this.emit();
   }
 
-  /**
-   * 清空所有上传
-   */
-  clearAll(): void {
-    this.uploadTasks.clear();
-    this.activeUploads.clear();
-    this.uploadQueue = [];
-    this.thumbnailCache.clear();
-    console.log("All uploads cleared");
+  async retry(taskId: string, onProgress?: (p: UploadProgress) => void): Promise<UploadTask> {
+    const task = this.tasks.get(taskId);
+    if (!task) throw new Error(`Upload task not found: ${taskId}`);
+    if (task.retryCount >= this.maxRetries) throw new Error("Max retries reached");
+    task.status = "pending";
+    task.progress = 0;
+    task.uploadedSize = 0;
+    this.queue.push(taskId);
+    return this.startUpload(taskId, onProgress);
   }
 
-  /**
-   * 重试失败的上传
-   */
-  async retryFailed(
-    fileData: Map<string, ArrayBuffer>,
-    onProgress?: (progress: UploadProgress) => void
-  ): Promise<void> {
-    const failed = Array.from(this.uploadTasks.values()).filter(
-      t => t.status === "failed" && t.retryCount < 3
-    );
-
+  async retryFailed(onProgress?: (p: UploadProgress) => void): Promise<void> {
+    const failed = [...this.tasks.values()].filter((t) => t.status === "failed" && t.retryCount < this.maxRetries);
     for (const task of failed) {
-      const data = fileData.get(task.id);
-      if (data) {
-        try {
-          await this.startUpload(task.id, data, onProgress);
-        } catch (error) {
-          console.error(`Retry failed for ${task.id}:`, error);
-        }
+      try {
+        await this.retry(task.id, onProgress);
+      } catch (error) {
+        console.error(`[upload] retry failed for ${task.id}`, error);
       }
     }
   }
+
+  /* ------------------------------ queries ----------------------------- */
+
+  getUploadTask(taskId: string) {
+    return this.tasks.get(taskId);
+  }
+  getAllUploadTasks(): UploadTask[] {
+    return [...this.tasks.values()];
+  }
+  getActiveUploads(): UploadTask[] {
+    return [...this.active].map((id) => this.tasks.get(id)).filter((t): t is UploadTask => !!t);
+  }
+  getStats() {
+    const tasks = [...this.tasks.values()];
+    return {
+      total: tasks.length,
+      completed: tasks.filter((t) => t.status === "completed").length,
+      failed: tasks.filter((t) => t.status === "failed").length,
+      active: this.active.size,
+      queued: this.queue.length,
+      totalSize: tasks.reduce((s, t) => s + t.fileSize, 0),
+      uploadedSize: tasks.reduce((s, t) => s + t.uploadedSize, 0),
+    };
+  }
+  clearCompleted(): void {
+    for (const [id, t] of this.tasks) if (t.status === "completed") this.tasks.delete(id);
+    this.emit();
+  }
+  clearAll(): void {
+    for (const id of [...this.tasks.keys()]) this.cancelUpload(id);
+  }
 }
 
-// 导出单例
 export const completeUploadManager = new CompleteUploadManager();

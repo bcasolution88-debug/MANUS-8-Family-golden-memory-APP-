@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/lib/language-provider";
 import { useColors } from "@/hooks/use-colors";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { GradientCard } from "@/components/gradient-card";
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -56,7 +57,7 @@ export default function SplashScreen() {
   }
 
   return (
-    <View className="flex-1 bg-gradient-to-b from-background to-surface">
+    <GradientCard colors={[colors.background, colors.surface]} className="flex-1">
       <ScrollView
         contentContainerStyle={{ flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
@@ -71,14 +72,12 @@ export default function SplashScreen() {
               <Pressable
                 onPress={() => setLanguage("zh")}
                 className={`px-4 py-2 rounded-full ${
-                  language === "zh" ? "bg-primary" : ""
+                  language === "en" ? "bg-primary" : ""
                 }`}
               >
                 <Text
                   className={`font-semibold ${
-                    language === "zh"
-                      ? "text-white"
-                      : "text-foreground"
+                    language === "en" ? "text-white" : "text-foreground"
                   }`}
                 >
                   中文
@@ -185,7 +184,7 @@ export default function SplashScreen() {
               onPress={() => router.push("/auth/login")}
               className="bg-primary rounded-full py-4 items-center justify-center active:opacity-80"
             >
-              <Text className="text-white font-bold text-lg">
+              <Text className="text-onPrimary font-bold text-lg">
                 {t("beginJourney")}
               </Text>
             </Pressable>
@@ -200,6 +199,6 @@ export default function SplashScreen() {
           </View>
         </View>
       </ScrollView>
-    </View>
+    </GradientCard>
   );
 }

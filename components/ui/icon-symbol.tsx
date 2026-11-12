@@ -22,6 +22,9 @@ const MAPPING = {
   "bell.fill": "notifications",
   "photo.fill": "photo",
   "person.fill": "person",
+  // Tab bar icons used in app/(tabs)/_layout.tsx
+  calendar: "calendar-today",
+  "envelope.fill": "email",
 } as IconMapping;
 
 /**

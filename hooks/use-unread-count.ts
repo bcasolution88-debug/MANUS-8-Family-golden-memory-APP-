@@ -1,31 +1,37 @@
-import { useEffect, useState } from "react";
-import { getUnreadCount, UnreadCount } from "@/lib/messaging-system";
+import { useMemo } from "react";
 
-export function useUnreadCount() {
-  const [unreadCount, setUnreadCount] = useState<UnreadCount>({
-    messages: 0,
-    comments: 0,
-    mentions: 0,
-    total: 0,
+import { useAuth } from "@/hooks/use-auth";
+import type { UnreadCount } from "@/lib/messaging-system";
+import { trpc } from "@/lib/trpc";
+
+const EMPTY: UnreadCount = { messages: 0, comments: 0, mentions: 0, total: 0 };
+
+/**
+ * Unread notification counts for the Tab-bar badge.
+ *
+ * Backed by `notification.unreadCount` (server/notifications.ts). Polls every
+ * 30s while the app is in the foreground; mutations that change the feed
+ * (markRead / markAllRead / delete) should `utils.notification.unreadCount.invalidate()`.
+ * Returns zeros when signed out so the badge never shows stale mock numbers.
+ */
+export function useUnreadCount(): UnreadCount & { isLoading: boolean } {
+  const { isAuthenticated } = useAuth();
+  const query = trpc.notification.unreadCount.useQuery(undefined, {
+    enabled: isAuthenticated,
+    refetchInterval: 30_000,
+    staleTime: 10_000,
   });
 
-  useEffect(() => {
-    const fetchUnreadCount = async () => {
-      try {
-        const count = await getUnreadCount();
-        setUnreadCount(count);
-      } catch (error) {
-        console.error("Failed to fetch unread count:", error);
-      }
+  return useMemo(() => {
+    if (!isAuthenticated || !query.data) return { ...EMPTY, isLoading: query.isLoading };
+    const { total, comments, likes, mentions, messages } = query.data;
+    return {
+      total,
+      comments,
+      mentions,
+      // Treat likes as "messages" for the legacy three-bucket shape used by callers.
+      messages: messages + likes,
+      isLoading: false,
     };
-
-    fetchUnreadCount();
-
-    // 定期更新未读计数
-    const interval = setInterval(fetchUnreadCount, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  return unreadCount;
+  }, [isAuthenticated, query.data, query.isLoading]);
 }

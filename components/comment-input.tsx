@@ -3,17 +3,21 @@ import { useState, useEffect } from "react";
 import { useColors } from "@/hooks/use-colors";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { searchMentionUsers } from "@/lib/messaging-system";
+import { MicButton } from "@/components/mic-button";
 
 interface CommentInputProps {
   onSubmit: (content: string, mentions: string[]) => void;
   placeholder?: string;
   isLoading?: boolean;
+  /** Show the voice-to-text microphone (P3). Default true. */
+  enableVoice?: boolean;
 }
 
 export function CommentInput({
   onSubmit,
   placeholder = "添加评论...",
   isLoading = false,
+  enableVoice = true,
 }: CommentInputProps) {
   const colors = useColors();
   const [content, setContent] = useState("");
@@ -76,10 +80,16 @@ export function CommentInput({
           className="flex-1 text-foreground py-2"
           style={{ maxHeight: 100 }}
         />
+        {enableVoice && (
+          <MicButton
+            disabled={isLoading}
+            onTranscript={(text) => setContent((prev) => (prev ? `${prev} ${text}` : text))}
+          />
+        )}
         <Pressable
           onPress={handleSubmit}
           disabled={!content.trim() || isLoading}
-          className="p-2"
+          className="p-2 min-w-[48px] min-h-[48px] items-center justify-center"
         >
           <MaterialIcons
             name="send"

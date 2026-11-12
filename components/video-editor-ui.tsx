@@ -13,7 +13,7 @@ interface VideoEditorUIProps {
 
 export function VideoEditorUI({ projectId, onExport }: VideoEditorUIProps) {
   const colors = useColors();
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   const videoEditor = useVideoEditor();
   const [project, setProject] = useState<VideoProject | null>(null);
   const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export function VideoEditorUI({ projectId, onExport }: VideoEditorUIProps) {
   if (!project) {
     return (
       <View className="flex-1 items-center justify-center bg-background">
-        <Text className="text-foreground">{language === "zh" ? "加载中..." : "Loading..."}</Text>
+        <Text className="text-foreground">{t("loading")}</Text>
       </View>
     );
   }
@@ -63,7 +63,7 @@ export function VideoEditorUI({ projectId, onExport }: VideoEditorUIProps) {
         <View className="w-full h-full bg-gray-900 items-center justify-center">
           <MaterialIcons name="videocam" size={64} color="white" />
           <Text className="text-white mt-4">
-            {language === "zh" ? "视频预览" : "Video Preview"}
+            {t("videoEditor.videoPreview")}
           </Text>
           <Text className="text-gray-400 text-sm mt-2">
             {currentTime.toFixed(1)}s / {project.duration.toFixed(1)}s
@@ -80,7 +80,7 @@ export function VideoEditorUI({ projectId, onExport }: VideoEditorUIProps) {
           <MaterialIcons
             name={isPlaying ? "pause" : "play-arrow"}
             size={24}
-            color="white"
+            color={colors.onPrimary}
           />
         </Pressable>
 
@@ -115,20 +115,12 @@ export function VideoEditorUI({ projectId, onExport }: VideoEditorUIProps) {
               }`}
             >
               {tab === "clips"
-                ? language === "zh"
-                  ? "剪辑"
-                  : "Clips"
+                ? t("videoEditor.clips")
                 : tab === "effects"
-                  ? language === "zh"
-                    ? "效果"
-                    : "Effects"
+                  ? t("common.effects")
                   : tab === "text"
-                    ? language === "zh"
-                      ? "文字"
-                      : "Text"
-                    : language === "zh"
-                      ? "音乐"
-                      : "Audio"}
+                    ? t("videoEditor.text")
+                    : t("videoEditor.audio")}
             </Text>
           </Pressable>
         ))}
@@ -139,13 +131,13 @@ export function VideoEditorUI({ projectId, onExport }: VideoEditorUIProps) {
         {activeTab === "clips" && (
           <View className="gap-3">
             <Text className="text-base font-semibold text-foreground mb-2">
-              {language === "zh" ? "视频剪辑" : "Video Clips"}
+              {t("videoEditor.videoClips")}
             </Text>
             {project.clips.length === 0 ? (
               <View className="items-center justify-center py-8">
                 <MaterialIcons name="video-library" size={48} color={colors.muted} />
                 <Text className="text-muted mt-2">
-                  {language === "zh" ? "还没有添加剪辑" : "No clips added"}
+                  {t("videoEditor.noClipsAdded")}
                 </Text>
               </View>
             ) : (
@@ -182,7 +174,7 @@ export function VideoEditorUI({ projectId, onExport }: VideoEditorUIProps) {
         {activeTab === "effects" && (
           <View className="gap-3">
             <Text className="text-base font-semibold text-foreground mb-2">
-              {language === "zh" ? "滤镜效果" : "Filters"}
+              {t("videoEditor.filters")}
             </Text>
             <View className="gap-2">
               {videoEditor.getFilterTypes().map(filterType => (
@@ -202,13 +194,13 @@ export function VideoEditorUI({ projectId, onExport }: VideoEditorUIProps) {
         {activeTab === "text" && (
           <View className="gap-3">
             <Text className="text-base font-semibold text-foreground mb-2">
-              {language === "zh" ? "文字叠加" : "Text Overlays"}
+              {t("videoEditor.textOverlays")}
             </Text>
             {project.textOverlays.length === 0 ? (
               <View className="items-center justify-center py-8">
                 <MaterialIcons name="text-fields" size={48} color={colors.muted} />
                 <Text className="text-muted mt-2">
-                  {language === "zh" ? "还没有添加文字" : "No text overlays"}
+                  {t("videoEditor.noTextOverlays")}
                 </Text>
               </View>
             ) : (
@@ -229,13 +221,13 @@ export function VideoEditorUI({ projectId, onExport }: VideoEditorUIProps) {
         {activeTab === "audio" && (
           <View className="gap-3">
             <Text className="text-base font-semibold text-foreground mb-2">
-              {language === "zh" ? "音乐轨道" : "Audio Tracks"}
+              {t("videoEditor.audioTracks")}
             </Text>
             {project.audioTracks.length === 0 ? (
               <View className="items-center justify-center py-8">
                 <MaterialIcons name="music-note" size={48} color={colors.muted} />
                 <Text className="text-muted mt-2">
-                  {language === "zh" ? "还没有添加音乐" : "No audio tracks"}
+                  {t("videoEditor.noAudioTracks")}
                 </Text>
               </View>
             ) : (
@@ -271,12 +263,8 @@ export function VideoEditorUI({ projectId, onExport }: VideoEditorUIProps) {
             />
             <Text className="text-white font-semibold">
               {exporting
-                ? language === "zh"
-                  ? "导出中..."
-                  : "Exporting..."
-                : language === "zh"
-                  ? "导出视频"
-                  : "Export Video"}
+                ? t("videoEditor.exporting")
+                : t("common.exportVideo")}
             </Text>
           </View>
         </Pressable>

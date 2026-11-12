@@ -38,21 +38,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     applyScheme(colorScheme);
   }, [applyScheme, colorScheme]);
 
-  const themeVariables = useMemo(
-    () =>
-      vars({
-        "color-primary": SchemeColors[colorScheme].primary,
-        "color-background": SchemeColors[colorScheme].background,
-        "color-surface": SchemeColors[colorScheme].surface,
-        "color-foreground": SchemeColors[colorScheme].foreground,
-        "color-muted": SchemeColors[colorScheme].muted,
-        "color-border": SchemeColors[colorScheme].border,
-        "color-success": SchemeColors[colorScheme].success,
-        "color-warning": SchemeColors[colorScheme].warning,
-        "color-error": SchemeColors[colorScheme].error,
-      }),
-    [colorScheme],
-  );
+  // Iterate every token in theme.config.js so newly added semantic tokens
+  // (onPrimary, primarySoft, info, secondary, ...) become CSS variables automatically.
+  const themeVariables = useMemo(() => {
+    const palette = SchemeColors[colorScheme];
+    const cssVars: Record<string, string> = {};
+    (Object.keys(palette) as (keyof typeof palette)[]).forEach((token) => {
+      cssVars[`color-${token}`] = palette[token];
+    });
+    return vars(cssVars);
+  }, [colorScheme]);
 
   const value = useMemo(
     () => ({
@@ -61,7 +56,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }),
     [colorScheme, setColorScheme],
   );
-  console.log(value, themeVariables)
 
   return (
     <ThemeContext.Provider value={value}>

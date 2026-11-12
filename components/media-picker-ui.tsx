@@ -17,7 +17,7 @@ export function MediaPickerUI({
   mediaType = "all",
 }: MediaPickerUIProps) {
   const colors = useColors();
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   const {
     albums,
     recentAssets,
@@ -137,7 +137,7 @@ export function MediaPickerUI({
           {item.title}
         </Text>
         <Text className="text-sm text-muted">
-          {language === "zh" ? `${item.assetCount}张` : `${item.assetCount} items`}
+          {t("mediaPicker.assetcountItems", { assetCount: item.assetCount })}
         </Text>
       </View>
       <MaterialIcons name="chevron-right" size={24} color={colors.muted} />
@@ -149,16 +149,14 @@ export function MediaPickerUI({
       <View className="flex-1 items-center justify-center gap-4 p-6">
         <MaterialIcons name="photo-library" size={64} color={colors.muted} />
         <Text className="text-lg font-semibold text-foreground text-center">
-          {language === "zh"
-            ? "需要访问相册权限"
-            : "Permission required to access photos"}
+          {t("mediaPicker.permissionRequiredToAccess")}
         </Text>
         <Pressable
           onPress={requestPermission}
           className="bg-primary px-6 py-3 rounded-full active:opacity-80"
         >
-          <Text className="text-white font-semibold">
-            {language === "zh" ? "授予权限" : "Grant Permission"}
+          <Text className="text-onPrimary font-semibold">
+            {t("mediaPicker.grantPermission")}
           </Text>
         </Pressable>
       </View>
@@ -176,9 +174,7 @@ export function MediaPickerUI({
         )}
         <Text className="text-lg font-bold text-foreground flex-1">
           {showAlbumList
-            ? language === "zh"
-              ? "选择相册"
-              : "Select Album"
+            ? t("common.selectAlbum")
             : selectedAlbum?.title}
         </Text>
         {!showAlbumList && selectedMedia.size > 0 && (
@@ -186,8 +182,8 @@ export function MediaPickerUI({
             onPress={handleConfirm}
             className="bg-primary px-4 py-2 rounded-full active:opacity-80"
           >
-            <Text className="text-white font-semibold text-sm">
-              {language === "zh" ? `确定(${selectedMedia.size})` : `Done(${selectedMedia.size})`}
+            <Text className="text-onPrimary font-semibold text-sm">
+              {t("mediaPicker.doneSelectedmediasize", { selectedMediaSize: selectedMedia.size })}
             </Text>
           </Pressable>
         )}
@@ -198,7 +194,7 @@ export function MediaPickerUI({
         <View className="flex-1 items-center justify-center">
           <MaterialIcons name="hourglass-empty" size={48} color={colors.muted} />
           <Text className="text-muted mt-2">
-            {language === "zh" ? "加载中..." : "Loading..."}
+            {t("loading")}
           </Text>
         </View>
       ) : showAlbumList ? (
@@ -208,7 +204,7 @@ export function MediaPickerUI({
           {recentAssets.length > 0 && (
             <View className="mb-6">
               <Text className="text-base font-semibold text-foreground mb-3">
-                {language === "zh" ? "最近" : "Recent"}
+                {t("mediaPicker.recent")}
               </Text>
               <FlatList
                 data={recentAssets.slice(0, 6)}
@@ -223,7 +219,7 @@ export function MediaPickerUI({
 
           {/* 相册列表 */}
           <Text className="text-base font-semibold text-foreground mb-3">
-            {language === "zh" ? "相册" : "Albums"}
+            {t("common.albums")}
           </Text>
           {albums.map(album => (
             <View key={album.id}>

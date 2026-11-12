@@ -50,7 +50,7 @@ const MOCK_NOTIFICATION_DETAILS: Record<string, any> = {
 export default function NotificationDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams();
-  const { t, language } = useLanguage();
+  const { t, l } = useLanguage();
   const colors = useColors();
   const [replyText, setReplyText] = useState("");
   const [replies, setReplies] = useState(MOCK_NOTIFICATION_DETAILS[id as string]?.replies || []);
@@ -61,7 +61,7 @@ export default function NotificationDetailScreen() {
     return (
       <ScreenContainer className="bg-background items-center justify-center">
         <Text className="text-lg font-semibold text-foreground">
-          {language === "zh" ? "通知不存在" : "Notification not found"}
+          {t("notification.notificationNotFound")}
         </Text>
       </ScreenContainer>
     );
@@ -97,13 +97,13 @@ export default function NotificationDetailScreen() {
           <View className="flex-1">
             {/* 顶部导航 */}
             <View className="flex-row items-center justify-between px-6 py-4 bg-surface">
-              <Pressable onPress={() => router.back()} className="p-2">
+              <Pressable onPress={() => router.back()} className="p-2 min-w-[48px] min-h-[48px] items-center justify-center">
                 <MaterialIcons name="arrow-back" size={24} color={colors.foreground} />
               </Pressable>
               <Text className="text-lg font-bold text-foreground">
-                {language === "zh" ? "通知详情" : "Notification Detail"}
+                {t("notification.notificationDetail")}
               </Text>
-              <Pressable className="p-2">
+              <Pressable className="p-2 min-w-[48px] min-h-[48px] items-center justify-center">
                 <MaterialIcons name="more-vert" size={24} color={colors.foreground} />
               </Pressable>
             </View>
@@ -119,18 +119,18 @@ export default function NotificationDetailScreen() {
                   />
                   <View className="flex-1">
                     <Text className="font-semibold text-foreground">
-                      {language === "zh" ? notification.user : notification.userEn}
+                      {l(notification.user, notification.userEn)}
                     </Text>
                     <Text className="text-xs text-muted">{notification.timestamp}</Text>
                   </View>
                 </View>
 
                 <Text className="text-sm text-muted">
-                  {language === "zh" ? notification.context : notification.contextEn}
+                  {l(notification.context, notification.contextEn)}
                 </Text>
 
                 <Text className="text-base text-foreground">
-                  {language === "zh" ? notification.message : notification.messageEn}
+                  {l(notification.message, notification.messageEn)}
                 </Text>
 
                 {notification.thumbnail && (
@@ -145,7 +145,7 @@ export default function NotificationDetailScreen() {
               {replies.length > 0 && (
                 <View className="gap-3">
                   <Text className="text-lg font-bold text-foreground">
-                    {language === "zh" ? "回复" : "Replies"}
+                    {t("notification.replies")}
                   </Text>
                   {replies.map((reply: any) => (
                     <View key={reply.id} className="bg-surface rounded-2xl p-4 gap-2">
@@ -174,13 +174,13 @@ export default function NotificationDetailScreen() {
                 <Pressable className="flex-1 flex-row items-center justify-center gap-2 bg-surface rounded-full py-3 active:opacity-80">
                   <MaterialIcons name="favorite-border" size={20} color={colors.primary} />
                   <Text className="text-sm font-semibold text-primary">
-                    {language === "zh" ? "赞" : "Like"}
+                    {t("common.like")}
                   </Text>
                 </Pressable>
                 <Pressable className="flex-1 flex-row items-center justify-center gap-2 bg-surface rounded-full py-3 active:opacity-80">
                   <MaterialIcons name="share" size={20} color={colors.primary} />
                   <Text className="text-sm font-semibold text-primary">
-                    {language === "zh" ? "分享" : "Share"}
+                    {t("common.share")}
                   </Text>
                 </Pressable>
               </View>
@@ -192,7 +192,7 @@ export default function NotificationDetailScreen() {
         <View className="px-6 py-4 bg-surface border-t border-border gap-2">
           <View className="flex-row items-center gap-2 bg-background rounded-full px-4 py-2">
             <TextInput
-              placeholder={language === "zh" ? "输入回复..." : "Type a reply..."}
+              placeholder={t("notification.typeAReply")}
               value={replyText}
               onChangeText={setReplyText}
               placeholderTextColor={colors.muted}
